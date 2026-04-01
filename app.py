@@ -15,7 +15,7 @@ def get_stars(rating):
         num = float(rating.split("/")[0])
         full = int(num)
         half = 1 if num - full >= 0.5 else 0
-        return "⭐" * full + ("✨" if half else "")
+        return "⭐" * full + (" ✨" if half else "")
     except:
         return "⭐⭐⭐⭐"
 
