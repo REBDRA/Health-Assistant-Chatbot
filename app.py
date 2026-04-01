@@ -78,16 +78,26 @@ st.markdown(
 # 🖼️ Image
 st.image("https://cdn-icons-png.flaticon.com/512/3774/3774299.png", width=120)
 
-# 🔐 Secure API Key Loading (Works locally and on Streamlit Cloud)
-if "GROQ_API_KEY" in st.secrets:
-    api_key = st.secrets["GROQ_API_KEY"]  # Fetches from Streamlit Cloud Secrets
-elif "GROQ_API_KEY" in os.environ:
-    api_key = os.environ["GROQ_API_KEY"]  # Fetches from your local .env file
-else:
-    st.warning("⚠️ Add GROQ_API_KEY to Streamlit Secrets or .env file")
-    st.stop()
+# 🔒 Secure API Key Loading (Works locally and on Streamlit)
+api_key = None
 
-client = Groq(api_key=api_key)
+try:
+    # First, try to fetch from Streamlit secrets
+    api_key = st.secrets["GROQ_API_KEY"]
+except Exception:
+    # This catches the StreamlitSecretNotFoundError (missing file)
+    # AND KeyError (file exists but key doesn't)
+    pass
+
+# Fallback to standard environment variables if not found in st.secrets
+if not api_key:
+    api_key = os.environ.get("GROQ_API_KEY")
+
+# Optional: Add a check to warn you if it fails completely
+if not api_key:
+    st.error(
+        "GROQ_API_KEY is missing! Please set it in secrets.toml or as an environment variable."
+    )
 
 SYSTEM_PROMPT = """
 You are a highly intelligent and strict Medical Triage AI.
