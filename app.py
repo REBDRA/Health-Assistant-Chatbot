@@ -25,7 +25,6 @@ st.set_page_config(page_title="Health Assistant AI", page_icon="🩺")
 st.title("🩺 Health Assistant AI")
 
 # 🎨 CSS styling
-# 🎨 CSS styling
 st.markdown(
     """
 <style>
