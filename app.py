@@ -78,12 +78,16 @@ st.markdown(
 # 🖼️ Image
 st.image("https://cdn-icons-png.flaticon.com/512/3774/3774299.png", width=120)
 
-# Check API key
-if "GROQ_API_KEY" not in os.environ:
-    st.warning("⚠️ Add GROQ_API_KEY in .env")
+# 🔐 Secure API Key Loading (Works locally and on Streamlit Cloud)
+if "GROQ_API_KEY" in st.secrets:
+    api_key = st.secrets["GROQ_API_KEY"]  # Fetches from Streamlit Cloud Secrets
+elif "GROQ_API_KEY" in os.environ:
+    api_key = os.environ["GROQ_API_KEY"]  # Fetches from your local .env file
+else:
+    st.warning("⚠️ Add GROQ_API_KEY to Streamlit Secrets or .env file")
     st.stop()
 
-client = Groq(api_key=os.environ["GROQ_API_KEY"])
+client = Groq(api_key=api_key)
 
 SYSTEM_PROMPT = """
 You are a highly intelligent and strict Medical Triage AI.
