@@ -1,137 +1,192 @@
-import streamlit as st
+import json
 import os
-from pydantic import BaseModel, Field
-from typing import List, Optional
-import instructor
-from groq import Groq
-from dotenv import load_dotenv
 
-# Load environment variables
+import streamlit as st
+from dotenv import load_dotenv
+from groq import Groq
+
+# Load env
 load_dotenv()
 
-st.set_page_config(page_title="Health Assistant AI", page_icon="🩺", layout="centered")
+
+# ⭐ Rating stars
+def get_stars(rating):
+    try:
+        num = float(rating.split("/")[0])
+        full = int(num)
+        half = 1 if num - full >= 0.5 else 0
+        return "⭐" * full + ("✨" if half else "")
+    except:
+        return "⭐⭐⭐⭐"
+
+
+st.set_page_config(page_title="Health Assistant AI", page_icon="🩺")
+
 st.title("🩺 Health Assistant AI")
 
-if "GROQ_API_KEY" not in os.environ or not os.environ["GROQ_API_KEY"]:
-    st.warning(
-        "⚠️ GROQ_API_KEY is not set. Please add it to your .env file to continue."
-    )
+# 🎨 CSS styling
+# 🎨 CSS styling
+st.markdown(
+    """
+<style>
+/* Background Gradient */
+.stApp {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+}
+
+/* FIX: Scroll stickiness at the bottom */
+[data-testid="block-container"] {
+    padding-bottom: 150px; 
+}
+
+/* Streamlit Chat Message Hover */
+[data-testid="stChatMessage"] {
+    border-radius: 15px;
+    padding: 10px;
+    transition: 0.3s;
+}
+[data-testid="stChatMessage"]:hover {
+    transform: scale(1.01);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Playful Card Styling */
+.playful-card {
+    background: rgba(255, 255, 255, 0.08); /* Semi-transparent to match background */
+    backdrop-filter: blur(10px); /* Glassmorphism effect */
+    border: 2px dashed rgba(137, 247, 254, 0.5); /* Playful dashed border */
+    border-radius: 20px; 
+    padding: 20px;
+    color: #f1f1f1; /* Light text for dark mode */
+    font-family: 'Nunito', 'Comic Sans MS', sans-serif; 
+    white-space: pre-wrap; /* Ensures spacing and newlines render properly */
+    line-height: 1.6;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy hover */
+}
+
+.playful-card:hover {
+    transform: translateY(-5px) rotate(0.5deg); /* Bounce and tilt */
+    box-shadow: 0px 10px 25px rgba(137, 247, 254, 0.15); /* Soft glowing shadow */
+    border-color: #89f7fe;
+    background: rgba(255, 255, 255, 0.12);
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+# 🖼️ Image
+st.image("https://cdn-icons-png.flaticon.com/512/3774/3774299.png", width=120)
+
+# Check API key
+if "GROQ_API_KEY" not in os.environ:
+    st.warning("⚠️ Add GROQ_API_KEY in .env")
     st.stop()
 
-# Initialize the Groq client and patch it with Instructor
-try:
-    # instructor patches the groq client to natively output strictly via Pydantic
-    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-    client = instructor.from_groq(client, mode=instructor.Mode.JSON)
-except Exception as e:
-    st.error(f"Failed to initialize Groq client: {e}")
-    st.stop()
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
+SYSTEM_PROMPT = """
+You are a highly intelligent and strict Medical Triage AI.
 
-# ----------------- PYDANTIC SCHEMAS -----------------
-class Doctor(BaseModel):
-    name: str = Field(description="Doctor's Full Name")
-    phone: str = Field(description="Phone Number")
-    location: str = Field(description="Specific Area/City")
-    rating: str = Field(description="X/5 Stars")
+You MUST return ONLY valid JSON in this format:
+{
+  "is_valid_query": true/false,
+  "remedies": ["...", "...", "..."],
+  "doctors": [
+    {"name": "Dr. Firstname Lastname (Specialty)", "phone": "...", "location": "...", "rating": "..."},
+    {"name": "Dr. Firstname Lastname (Specialty)", "phone": "...", "location": "...", "rating": "..."},
+    {"name": "Dr. Firstname Lastname (Specialty)", "phone": "...", "location": "...", "rating": "..."}
+  ],
+  "error_message": "..."
+}
 
+CRITICAL RULES FOR VALIDATION:
+1. ANATOMICAL LOGIC: If the user states a contradiction (e.g., "headache in chest"), gibberish, or a joke -> set "is_valid_query": false and provide a polite "error_message" asking for clarity.
+2. ONLY if the symptom makes sense -> set "is_valid_query": true.
 
-class HealthResponse(BaseModel):
-    is_valid_query: bool = Field(
-        description="True if the user described a medical pain/symptom. False if gibberish, non-medical, or making no sense."
-    )
-    remedies: Optional[List[str]] = Field(
-        default=None,
-        description="3 actionable home remedies or recovery steps. Required if is_valid_query is True.",
-    )
-    doctors: Optional[List[Doctor]] = Field(
-        default=None,
-        description="3 relevant medical professionals. Required if is_valid_query is True.",
-    )
-    error_message: Optional[str] = Field(
-        default=None,
-        description="If is_valid_query is False, exact phrase: 'I'm sorry, I couldn't understand that. Please describe the area of your body where you are experiencing pain so I can assist you.'",
-    )
+RULES FOR DOCTOR GENERATION (CRITICAL):
+1. First, identify the exact medical SPECIALTY needed for the user's symptom (e.g., Ophthalmologist for eyes, Neurologist for headaches, Dermatologist for skin).
+2. You MUST include this specialty in brackets next to the name: e.g., "Dr. Amit Sharma (Ophthalmologist)".
+3. DO NOT repeat the same doctor names for different queries. Generate distinct, varied, and realistic doctor names for West Bengal, India.
+4. Give EXACTLY 3 doctors.
+5. Ratings must be 'X.X/5'.
+"""
 
+# 💙 Welcome
+st.info("👋 Hi! Tell me what's bothering you — I’ll help you feel better 💙")
 
-class finalOutput(BaseModel):
-    response: HealthResponse
-
-
-# ----------------------------------------------------
-
-SYSTEM_PROMPT = """You are a professional Health Assistant AI. Your strict job is to output structured data according to the provided schema based on these rules:
-Rule 1: If the user describes pain in a body part, set is_valid_query to true, provide exactly 3 actionable home remedies, and list exactly 3 relevant doctors.
-Rule 2: If the input is gibberish, non-medical, or makes no sense, set is_valid_query to false and provide the exact error_message."""
-
+# Chat history
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {
-            "role": "assistant",
-            "content": "Hello! I am your professional Health Assistant AI. Please describe the area of your body where you are experiencing pain or your medical symptoms.",
-        }
+        {"role": "assistant", "content": "Hello! Describe your symptoms."}
     ]
 
-# Display chat history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Display chat
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
+# Input
 if prompt := st.chat_input("Describe your symptoms..."):
-    # Add user message to state and display
     st.session_state.messages.append({"role": "user", "content": prompt})
+
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Analyzing your symptoms via structured reasoning..."):
-            messages_payload = [{"role": "system", "content": SYSTEM_PROMPT}]
-            # Pass recent history
-            messages_payload += [
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages[-3:]
-                if m["role"] == "user"
-            ]
-
+        with st.spinner("Analyzing..."):
             try:
-                # Instructor guarantees a HealthResponse structured exactly as defined above
-                response_data: HealthResponse = client.chat.completions.create(
-                    model="llama-3.1-70b-versatile",
-                    messages=messages_payload,
-                    response_model=HealthResponse,
-                    temperature=0.0,  # Deterministic strictly for parsing
+                response = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.0,
                 )
 
-                # Format the response back into perfect Markdown string exactly matching the gates
-                if not response_data.is_valid_query:
-                    final_text = (
-                        response_data.error_message
-                        or "I'm sorry, I couldn't understand that. Please describe the area of your body where you are experiencing pain so I can assist you."
-                    )
+                raw = response.choices[0].message.content
+                raw = raw.strip().replace("```json", "").replace("```", "").strip()
+
+                data = json.loads(raw)
+
+                if not data["is_valid_query"]:
+                    output = data["error_message"]
                 else:
-                    final_text = "**Home Remedies & Recovery Steps:**\n"
-                    if response_data.remedies:
-                        for idx, remedy in enumerate(response_data.remedies, 1):
-                            final_text += f"{idx}. {remedy}\n"
+                    output = "🌿 **Home Remedies & Recovery Steps:**\n"
+                    for i, r in enumerate(data["remedies"], 1):
+                        output += f"{i}. {r}\n"
 
-                    final_text += "\n**Recommended Doctors:**\n\n"
-                    if response_data.doctors:
-                        for doc in response_data.doctors:
-                            final_text += f"**Name:** {doc.name}\n\n**Phone:** {doc.phone}\n\n**Location:** {doc.location}\n\n**Rating:** {doc.rating}\n\n---\n"
+                    output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
 
-                # Apply standard system disclaimer to all outputs, as requested
-                final_text += "\n\n*Disclaimer: I am an AI, not a doctor. In case of a life-threatening emergency, please call your local emergency services immediately.*"
+                    for doc in data["doctors"]:
+                        stars = get_stars(doc["rating"])
 
-                st.markdown(final_text)
+                        output += (
+                            f"🧑‍⚕️ **{doc['name']}**\n"
+                            f"📍 {doc['location']}\n"
+                            f"📞 {doc['phone']}\n"
+                            f"⭐ {stars}\n\n---\n\n"
+                        )
+
+                output += "\n*Disclaimer: I am an AI, not a doctor.*"
+
+                # 🎨 Card UI (Now properly using the CSS class!)
+                st.markdown(
+                    f"""
+                <div class="playful-card">
+{output}
+                </div>
+                """,
+                    unsafe_allow_html=True,
+                )
+
                 st.session_state.messages.append(
-                    {"role": "assistant", "content": final_text}
+                    {"role": "assistant", "content": output}
                 )
 
             except Exception as e:
-                st.error(f"API Error during structured output extraction: {e}")
+                st.error(f"Error: {e}")
                 st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": "I encountered an error connecting to my intelligence systems. Please try again.",
-                    }
+                    {"role": "assistant", "content": "Something went wrong. Try again."}
                 )
