@@ -97,6 +97,8 @@ if not api_key:
     st.error(
         "GROQ_API_KEY is missing! Please set it in secrets.toml or as an environment variable."
     )
+else:
+    client = Groq(api_key=api_key)
 
 SYSTEM_PROMPT = """
 You are a highly intelligent and strict Medical Triage AI.
