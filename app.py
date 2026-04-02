@@ -25,15 +25,7 @@ def get_stars(rating: str) -> str:
 
 st.title("🩺 Health Assistant AI")
 
-# 👨‍💻 Sidebar / Copyright Claim
-with st.sidebar:
-    st.markdown("### 🩺 Health Assistant AI")
-    st.markdown("Your personal, smart medical triage assistant.")
-    st.markdown("---")
-    st.markdown("© 2026 Made with ❤️ by **Arpan**")
-    st.caption("All rights reserved.")
-
-# 🎨 CSS styling (Kept exactly as you designed it)
+# 🎨 CSS styling & Fixed Footer
 st.markdown(
     """
 <style>
@@ -59,7 +51,30 @@ st.markdown(
     border-color: #89f7fe;
     background: rgba(255, 255, 255, 0.12);
 }
+
+/* Custom Fixed Footer for Copyright */
+.custom-footer {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    font-family: 'Nunito', sans-serif;
+    z-index: 999999;
+    pointer-events: none;
+    text-align: center;
+}
+
+/* Add slight padding to bottom block to ensure input box doesn't cover footer */
+[data-testid="stBottomBlockContainer"] {
+    padding-bottom: 35px !important;
+}
 </style>
+
+<div class="custom-footer">
+    © 2026 Made with ❤️ by <b>[Your Name]</b>
+</div>
 """,
     unsafe_allow_html=True,
 )
