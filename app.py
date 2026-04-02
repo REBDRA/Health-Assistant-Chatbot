@@ -108,6 +108,7 @@ You MUST return ONLY valid JSON in this format:
 {
   "is_valid_query": true/false,
   "remedies": ["...", "...", "..."],
+  "advice": "...",
   "doctors": [
     {"name": "Dr. Firstname Lastname (Specialty)", "phone": "...", "location": "...", "rating": "..."},
     {"name": "Dr. Firstname Lastname (Specialty)", "phone": "...", "location": "...", "rating": "..."},
@@ -119,6 +120,10 @@ You MUST return ONLY valid JSON in this format:
 CRITICAL RULES FOR VALIDATION:
 1. ANATOMICAL LOGIC: If the user states a contradiction (e.g., "headache in chest"), gibberish, or a joke -> set "is_valid_query": false and provide a polite "error_message" asking for clarity.
 2. ONLY if the symptom makes sense -> set "is_valid_query": true.
+
+RULES FOR CONTENT GENERATION:
+1. REMEDIES: Provide specific cures, solutions, or home remedies.
+2. ADVICE: Provide broader health advice, lifestyle tips, or preventative measures related to the user's situation. Do NOT just repeat remedies.
 
 RULES FOR DOCTOR GENERATION (CRITICAL):
 1. First, identify the exact medical SPECIALTY needed for the user's symptom (e.g., Ophthalmologist for eyes, Neurologist for headaches, Dermatologist for skin).
@@ -172,6 +177,9 @@ if prompt := st.chat_input("Describe your symptoms..."):
                     output = "🌿 **Home Remedies & Recovery Steps:**\n"
                     for i, r in enumerate(data["remedies"], 1):
                         output += f"{i}. {r}\n"
+
+                    if "advice" in data and data["advice"]:
+                        output += f"\n💡 **General Health Advice:**\n{data['advice']}\n"
 
                     output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
 
