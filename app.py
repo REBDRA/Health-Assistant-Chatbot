@@ -73,14 +73,15 @@ st.markdown(
 </style>
 
 <div class="custom-footer">
-    © 2026 Made with ❤️ by <b>Arpan</b>
+    © 2026 Made with ❤️ by <b>[Your Name]</b>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# 🖼️ Image
-st.image("https://cdn-icons-png.flaticon.com/512/3774/3774299.png", width=120)
+# 🖼️ Cool 3D Robot Image (Header)
+AI_AVATAR_URL = "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Robot.png"
+st.image(AI_AVATAR_URL, width=120)
 
 # 🔒 Secure API Key Loading (Compact & Safe)
 api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
@@ -141,7 +142,10 @@ if "messages" not in st.session_state:
 
 # Display chat history (Fixes the disappearing CSS bug on reload)
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
+    # Set the custom avatar based on the role
+    avatar = AI_AVATAR_URL if msg["role"] == "assistant" else "👤"
+
+    with st.chat_message(msg["role"], avatar=avatar):
         if msg.get("is_card"):
             st.markdown(
                 f'<div class="playful-card">{msg["content"]}</div>',
@@ -157,10 +161,10 @@ if prompt := st.chat_input("Describe your symptoms or ask a health question...")
         {"role": "user", "content": prompt, "is_card": False}
     )
 
-    with st.chat_message("user"):
+    with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=AI_AVATAR_URL):
         with st.spinner("Analyzing..."):
             try:
                 # 🚀 Native JSON Mode for absolute stability
