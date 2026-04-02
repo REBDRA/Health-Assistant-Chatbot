@@ -73,7 +73,7 @@ st.markdown(
 </style>
 
 <div class="custom-footer">
-    © 2026 Made with ❤️ by <b>[Your Name]</b>
+    © 2026 Made with ❤️ by <b>Arpan</b>
 </div>
 """,
     unsafe_allow_html=True,
