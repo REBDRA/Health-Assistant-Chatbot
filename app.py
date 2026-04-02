@@ -1,3 +1,4 @@
+# type:ignore
 import json
 import os
 import random
@@ -12,7 +13,6 @@ st.set_page_config(page_title="Health Assistant AI", page_icon="🩺", layout="w
 # Load env
 load_dotenv()
 
-
 # ⭐ Rating stars - Optimized exception handling
 def get_stars(rating: str) -> str:
     try:
@@ -20,13 +20,11 @@ def get_stars(rating: str) -> str:
         full = int(num)
         half = 1 if num - full >= 0.5 else 0
         return "⭐" * full + (" ✨" if half else "")
-    except ValueError, AttributeError, IndexError:
+    except (ValueError, AttributeError, IndexError):
         return "⭐⭐⭐⭐"
-
 
 # 💧 Water Tracker Persistence Functions
 WATER_FILE = "water_data.json"
-
 
 def load_water_progress():
     if os.path.exists(WATER_FILE):
@@ -37,14 +35,12 @@ def load_water_progress():
             return 0.0
     return 0.0
 
-
 def save_water_progress(amount):
     try:
         with open(WATER_FILE, "w") as f:
             json.dump({"water_litres": amount}, f)
     except Exception:
         pass
-
 
 # 🎨 CSS styling & Fixed Footer
 st.markdown(
@@ -104,10 +100,8 @@ st.markdown(
 api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
 
 if not api_key:
-    st.error(
-        "GROQ_API_KEY is missing! Please set it in secrets.toml or as an environment variable."
-    )
-    st.stop()  # Prevents the app from crashing later when initializing the client
+    st.error("GROQ_API_KEY is missing! Please set it in secrets.toml or as an environment variable.")
+    st.stop() # Prevents the app from crashing later when initializing the client
 
 client = Groq(api_key=api_key)
 
@@ -152,13 +146,13 @@ left_col, main_col, right_col = st.columns([1, 2.2, 1], gap="large")
 # ------------------------------------------
 with left_col:
     st.markdown("### ⚡ Quick Tools")
-
+    
     # BMI Calculator Widget
     with st.container(border=True):
         st.markdown("#### ⚖️ BMI Calculator")
         weight = st.number_input("Weight (kg)", min_value=10.0, value=70.0, step=0.5)
         height = st.number_input("Height (cm)", min_value=50.0, value=170.0, step=1.0)
-
+        
         if st.button("Calculate BMI", use_container_width=True):
             bmi = weight / ((height / 100) ** 2)
             if bmi < 18.5:
@@ -169,7 +163,7 @@ with left_col:
                 status, color = "Overweight", "🟠"
             else:
                 status, color = "Obese", "🔴"
-
+                
             st.success(f"**BMI: {bmi:.1f}**\n\n{color} {status}")
 
 # ------------------------------------------
@@ -177,31 +171,34 @@ with left_col:
 # ------------------------------------------
 with right_col:
     st.markdown("### 💡 Wellness Hub")
-
+    
     # Interactive Water Tracker
     if "water_litres" not in st.session_state:
         # Load from file so it survives page reloads
         st.session_state.water_litres = load_water_progress()
-
+        
     with st.container(border=True):
         st.markdown("#### 💧 Water Tracker")
-
+        
         # Calculate progress (capped at 1.0 to avoid Streamlit errors)
         progress_val = min(st.session_state.water_litres / 2.0, 1.0)
-        st.progress(
-            progress_val, text=f"{st.session_state.water_litres:.2f} / 2.0 Litres"
-        )
-
-        col1, col2 = st.columns(2)
-        if col1.button("➕ Drink (0.25L)", use_container_width=True):
+        st.progress(progress_val, text=f"{st.session_state.water_litres:.2f} / 2.0 Litres")
+        
+        # Changed to 3 columns to accommodate the minus button
+        col1, col2, col3 = st.columns(3)
+        if col1.button("➕ Drink", help="Add 0.25L", use_container_width=True):
             if st.session_state.water_litres < 2.0:
                 # Add 0.25L, round it, save to file, and update UI
-                st.session_state.water_litres = round(
-                    st.session_state.water_litres + 0.25, 2
-                )
+                st.session_state.water_litres = round(st.session_state.water_litres + 0.25, 2)
                 save_water_progress(st.session_state.water_litres)
                 st.rerun()
-        if col2.button("🔄 Reset", use_container_width=True):
+        if col2.button("➖ Undo", help="Remove 0.25L", use_container_width=True):
+            if st.session_state.water_litres >= 0.25:
+                # Remove 0.25L, round it, save to file, and update UI
+                st.session_state.water_litres = round(st.session_state.water_litres - 0.25, 2)
+                save_water_progress(st.session_state.water_litres)
+                st.rerun()
+        if col3.button("🔄 Reset", use_container_width=True):
             # Reset to 0, save to file, and update UI
             st.session_state.water_litres = 0.0
             save_water_progress(0.0)
@@ -214,7 +211,7 @@ with right_col:
             "Take a 5-minute walking break every hour.",
             "Screen time? Follow the 20-20-20 rule to rest your eyes.",
             "Aim for 7-8 hours of sleep for optimal immune function.",
-            "Include a source of protein in every meal.",
+            "Include a source of protein in every meal."
         ]
         st.info(random.choice(tips))
 
@@ -225,7 +222,7 @@ with right_col:
 with main_col:
     # 🖼️ Cool 3D Robot Image (Header)
     AI_AVATAR_URL = "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Robot.png"
-
+    
     col_img, col_title = st.columns([1, 4])
     with col_img:
         st.image(AI_AVATAR_URL, width=80)
@@ -233,18 +230,106 @@ with main_col:
         st.title("Health Assistant")
 
     # 💙 Welcome
-    st.info(
-        "👋 Hi! Tell me what's bothering you, or ask me a health question — I’ll help you out 💙"
-    )
+    st.info("👋 Hi! Tell me what's bothering you, or ask me a health question — I’ll help you out 💙")
 
     # Chat history initialization (Added 'is_card' state)
     if "messages" not in st.session_state:
         st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": "Hello! Describe your symptoms or ask a general health question.",
-                "is_card": False,
-            }
+            {"role": "assistant", "content": "Hello! Describe your symptoms or ask a general health question.", "is_card": False}
+        ]
+
+    # Display chat history (Fixes the disappearing CSS bug on reload)
+    for msg in st.session_state.messages:
+        # Set the custom avatar based on the role
+        avatar = AI_AVATAR_URL if msg["role"] == "assistant" else "👤"
+        
+        with st.chat_message(msg["role"], avatar=avatar):
+            if msg.get("is_card"):
+                st.markdown(f'<div class="playful-card">{msg["content"]}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(msg["content"])
+
+    # Input processing
+    if prompt := st.chat_input("Describe your symptoms or ask a health question..."):
+        # Append user prompt to history
+        st.session_state.messages.append({"role": "user", "content": prompt, "is_card": False})
+        
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant", avatar=AI_AVATAR_URL):
+            with st.spinner("Analyzing..."):
+                try:
+                    # 🚀 Native JSON Mode for absolute stability
+                    response = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.0,
+                        response_format={"type": "json_object"} # Forces LLM to output clean JSON
+                    )
+
+                    # Parse JSON directly (no string replacements needed)
+                    data = json.loads(response.choices[0].message.content)
+
+                    if not data.get("is_valid_query", True):
+                        output = data.get("error_message", "I didn't quite understand that. Could you clarify?")
+                        is_card = False
+                    else:
+                        is_card = True
+                        output = ""
+                        
+                        # --- BRANCH 1: General Health Questions ---
+                        if data.get("query_type") == "general_health":
+                            direct_answer = data.get("direct_answer", "")
+                            advice = data.get("advice", "")
+                            
+                            if direct_answer:
+                                output += f"🩺 **Health Answer:**\n{direct_answer}\n"
+                            if advice:
+                                output += f"\n💡 **Additional Advice:**\n{advice}\n"
+
+                        # --- BRANCH 2: Symptom Triage & Remedies ---
+                        else:
+                            remedies = data.get("remedies", [])
+                            if remedies:
+                                # Compact string building
+                                remedies_text = "\n".join([f"{i}. {r}" for i, r in enumerate(remedies, 1)])
+                                output += f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
+                            
+                            advice = data.get("advice", "")
+                            if advice:
+                                output += f"\n💡 **General Health Advice:**\n{advice}\n"
+                                
+                            doctors = data.get("doctors", [])
+                            if doctors:
+                                output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
+                                for doc in doctors:
+                                    stars = get_stars(doc.get("rating", ""))
+                                    output += (
+                                        f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
+                                        f"📍 {doc.get('location', 'Unknown')}\n"
+                                        f"📞 {doc.get('phone', 'N/A')}\n"
+                                        f"⭐ {stars}\n\n---\n\n"
+                                    )
+                            
+                        output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
+
+                    # Render to screen
+                    if is_card:
+                        st.markdown(f'<div class="playful-card">{output}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(output)
+
+                    # Save to session state so it survives reloads
+                    st.session_state.messages.append({"role": "assistant", "content": output, "is_card": is_card})
+
+                except Exception as e:
+                    # Logging the actual error makes debugging much easier
+                    st.error(f"System Error: {e}") 
+                    st.session_state.messages.append({"role": "assistant", "content": "Something went wrong. Try again.", "is_card": False})
         ]
 
     # Display chat history (Fixes the disappearing CSS bug on reload)
