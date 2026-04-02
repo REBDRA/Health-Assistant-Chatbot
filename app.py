@@ -1,4 +1,3 @@
-# type:ignore
 import json
 import os
 import random
@@ -23,6 +22,28 @@ def get_stars(rating: str) -> str:
         return "⭐" * full + (" ✨" if half else "")
     except ValueError, AttributeError, IndexError:
         return "⭐⭐⭐⭐"
+
+
+# 💧 Water Tracker Persistence Functions
+WATER_FILE = "water_data.json"
+
+
+def load_water_progress():
+    if os.path.exists(WATER_FILE):
+        try:
+            with open(WATER_FILE, "r") as f:
+                return json.load(f).get("water_litres", 0.0)
+        except Exception:
+            return 0.0
+    return 0.0
+
+
+def save_water_progress(amount):
+    try:
+        with open(WATER_FILE, "w") as f:
+            json.dump({"water_litres": amount}, f)
+    except Exception:
+        pass
 
 
 # 🎨 CSS styling & Fixed Footer
@@ -159,7 +180,8 @@ with right_col:
 
     # Interactive Water Tracker
     if "water_litres" not in st.session_state:
-        st.session_state.water_litres = 0.0
+        # Load from file so it survives page reloads
+        st.session_state.water_litres = load_water_progress()
 
     with st.container(border=True):
         st.markdown("#### 💧 Water Tracker")
@@ -173,13 +195,16 @@ with right_col:
         col1, col2 = st.columns(2)
         if col1.button("➕ Drink (0.25L)", use_container_width=True):
             if st.session_state.water_litres < 2.0:
-                # Add 0.25L and round to prevent floating point imprecision (e.g. 0.75000000001)
+                # Add 0.25L, round it, save to file, and update UI
                 st.session_state.water_litres = round(
                     st.session_state.water_litres + 0.25, 2
                 )
+                save_water_progress(st.session_state.water_litres)
                 st.rerun()
         if col2.button("🔄 Reset", use_container_width=True):
+            # Reset to 0, save to file, and update UI
             st.session_state.water_litres = 0.0
+            save_water_progress(0.0)
             st.rerun()
 
     # Daily Tip
