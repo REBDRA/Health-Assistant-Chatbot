@@ -25,6 +25,14 @@ def get_stars(rating: str) -> str:
 
 st.title("🩺 Health Assistant AI")
 
+# 👨‍💻 Sidebar / Copyright Claim
+with st.sidebar:
+    st.markdown("### 🩺 Health Assistant AI")
+    st.markdown("Your personal, smart medical triage assistant.")
+    st.markdown("---")
+    st.markdown("© 2026 Made with ❤️ by **Arpan**")
+    st.caption("All rights reserved.")
+
 # 🎨 CSS styling (Kept exactly as you designed it)
 st.markdown(
     """
