@@ -57,10 +57,7 @@ st.markdown(
 )
 
 # 🖼️ Image
-st.image(
-    "[https://cdn-icons-png.flaticon.com/512/3774/3774299.png](https://cdn-icons-png.flaticon.com/512/3774/3774299.png)",
-    width=120,
-)
+st.image("https://cdn-icons-png.flaticon.com/512/3774/3774299.png", width=120)
 
 # 🔒 Secure API Key Loading (Compact & Safe)
 api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
@@ -72,6 +69,7 @@ if not api_key:
     st.stop()  # Prevents the app from crashing later when initializing the client
 
 client = Groq(api_key=api_key)
+
 SYSTEM_PROMPT = """
 You are a highly intelligent and strict Medical Triage & Health AI.
 
@@ -104,14 +102,16 @@ RULES FOR CONTENT GENERATION:
 """
 
 # 💙 Welcome
-st.info("👋 Hi! Tell me what's bothering you — I’ll help you feel better 💙")
+st.info(
+    "👋 Hi! Tell me what's bothering you, or ask me a health question — I’ll help you out 💙"
+)
 
 # Chat history initialization (Added 'is_card' state)
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant",
-            "content": "Hello! Describe your symptoms.",
+            "content": "Hello! Describe your symptoms or ask a general health question.",
             "is_card": False,
         }
     ]
@@ -128,7 +128,7 @@ for msg in st.session_state.messages:
             st.markdown(msg["content"])
 
 # Input processing
-if prompt := st.chat_input("Describe your symptoms..."):
+if prompt := st.chat_input("Describe your symptoms or ask a health question..."):
     # Append user prompt to history
     st.session_state.messages.append(
         {"role": "user", "content": prompt, "is_card": False}
@@ -164,31 +164,45 @@ if prompt := st.chat_input("Describe your symptoms..."):
                     is_card = False
                 else:
                     is_card = True
-                    # Compact string building
-                    remedies_text = "\n".join(
-                        [f"{i}. {r}" for i, r in enumerate(data.get("remedies", []), 1)]
-                    )
-                    advice = data.get("advice", "")
+                    output = ""
 
-                    output = (
-                        f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
-                    )
+                    # --- BRANCH 1: General Health Questions ---
+                    if data.get("query_type") == "general_health":
+                        direct_answer = data.get("direct_answer", "")
+                        advice = data.get("advice", "")
 
-                    if advice:
-                        output += f"\n💡 **General Health Advice:**\n{advice}\n"
+                        if direct_answer:
+                            output += f"🩺 **Health Answer:**\n{direct_answer}\n"
+                        if advice:
+                            output += f"\n💡 **Additional Advice:**\n{advice}\n"
 
-                    output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
+                    # --- BRANCH 2: Symptom Triage & Remedies ---
+                    else:
+                        remedies = data.get("remedies", [])
+                        if remedies:
+                            # Compact string building
+                            remedies_text = "\n".join(
+                                [f"{i}. {r}" for i, r in enumerate(remedies, 1)]
+                            )
+                            output += f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
 
-                    for doc in data.get("doctors", []):
-                        stars = get_stars(doc.get("rating", ""))
-                        output += (
-                            f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
-                            f"📍 {doc.get('location', 'Unknown')}\n"
-                            f"📞 {doc.get('phone', 'N/A')}\n"
-                            f"⭐ {stars}\n\n---\n\n"
-                        )
+                        advice = data.get("advice", "")
+                        if advice:
+                            output += f"\n💡 **General Health Advice:**\n{advice}\n"
 
-                    output += "\n*Disclaimer: I am an AI, not a doctor.*"
+                        doctors = data.get("doctors", [])
+                        if doctors:
+                            output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
+                            for doc in doctors:
+                                stars = get_stars(doc.get("rating", ""))
+                                output += (
+                                    f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
+                                    f"📍 {doc.get('location', 'Unknown')}\n"
+                                    f"📞 {doc.get('phone', 'N/A')}\n"
+                                    f"⭐ {stars}\n\n---\n\n"
+                                )
+
+                    output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
 
                 # Render to screen
                 if is_card:
