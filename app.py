@@ -2,6 +2,7 @@
 import json
 import os
 import random
+
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
@@ -73,7 +74,7 @@ st.markdown(
 </style>
 
 <div class="custom-footer">
-    © 2026 Made with ❤️ by <b>[Your Name]</b>
+    © 2026 Made with ❤️ by <b>Arpan</b>
 </div>
 """,
     unsafe_allow_html=True,
