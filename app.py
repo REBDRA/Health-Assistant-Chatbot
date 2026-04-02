@@ -2,7 +2,6 @@
 import json
 import os
 import random
-
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
@@ -74,7 +73,7 @@ st.markdown(
 </style>
 
 <div class="custom-footer">
-    © 2026 Made with ❤️ by <b>Arpan</b>
+    © 2026 Made with ❤️ by <b>[Your Name]</b>
 </div>
 """,
     unsafe_allow_html=True,
@@ -159,23 +158,28 @@ with right_col:
     st.markdown("### 💡 Wellness Hub")
 
     # Interactive Water Tracker
-    if "water_glasses" not in st.session_state:
-        st.session_state.water_glasses = 0
+    if "water_litres" not in st.session_state:
+        st.session_state.water_litres = 0.0
 
     with st.container(border=True):
         st.markdown("#### 💧 Water Tracker")
+
+        # Calculate progress (capped at 1.0 to avoid Streamlit errors)
+        progress_val = min(st.session_state.water_litres / 2.0, 1.0)
         st.progress(
-            st.session_state.water_glasses / 8,
-            text=f"{st.session_state.water_glasses} / 8 Glasses",
+            progress_val, text=f"{st.session_state.water_litres:.2f} / 2.0 Litres"
         )
 
         col1, col2 = st.columns(2)
-        if col1.button("➕ Drink", use_container_width=True):
-            if st.session_state.water_glasses < 8:
-                st.session_state.water_glasses += 1
+        if col1.button("➕ Drink (0.25L)", use_container_width=True):
+            if st.session_state.water_litres < 2.0:
+                # Add 0.25L and round to prevent floating point imprecision (e.g. 0.75000000001)
+                st.session_state.water_litres = round(
+                    st.session_state.water_litres + 0.25, 2
+                )
                 st.rerun()
         if col2.button("🔄 Reset", use_container_width=True):
-            st.session_state.water_glasses = 0
+            st.session_state.water_litres = 0.0
             st.rerun()
 
     # Daily Tip
