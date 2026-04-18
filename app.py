@@ -23,6 +23,30 @@ def get_stars(rating: str) -> str:
         return "⭐⭐⭐⭐"
 
 
+# 🏥 Doctor completeness score — higher = more info available
+def doctor_completeness_score(doc: dict) -> int:
+    score = 0
+    name = doc.get("name", "")
+    phone = doc.get("phone", "")
+    location = doc.get("location", "")
+    rating = doc.get("rating", "")
+
+    # Name: penalise placeholders
+    if name and name.lower() not in ("unknown", "no doctors found", ""):
+        score += 3
+    # Phone: real number beats 'Visit Website' or N/A
+    if phone and phone.lower() not in ("visit website", "n/a", ""):
+        score += 3
+    # Location: specific address beats generic / 'not available'
+    if location and location.lower() not in ("not available", "unknown", "", "kolkata"):
+        score += 2
+    # Rating present
+    if rating and rating.lower() not in ("", "verified"):
+        score += 1
+
+    return score
+
+
 # 💧 Water Tracker Persistence Functions
 WATER_FILE = "water_data.json"
 
@@ -376,6 +400,12 @@ with main_col:
 
                             doctors = data.get("doctors", [])
                             if doctors:
+                                # Sort: most complete profiles first
+                                doctors = sorted(
+                                    doctors,
+                                    key=lambda d: doctor_completeness_score(d),
+                                    reverse=True,
+                                )
                                 output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
                                 for doc in doctors:
                                     stars = get_stars(doc.get("rating", ""))
