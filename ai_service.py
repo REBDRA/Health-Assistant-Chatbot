@@ -40,11 +40,11 @@ class HealthResponse(BaseModel):
 
 # --- 2. THE AGENT CONFIGURATION ---
 
-# FIXED: Explicitly use the 'model' keyword to avoid the UserError
+# UPDATED: Changed 'system_prompt' to 'instructions'
 health_agent = Agent(
     model="groq:llama-3.3-70b-versatile",
     result_type=HealthResponse,
-    system_prompt=(
+    instructions=(
         "You are a strict Medical Triage AI for West Bengal, India. "
         "1. If symptoms are mentioned, you MUST use the 'search_verified_doctors' tool to find real doctors. "
         "2. If it is a general health question, answer directly. "
