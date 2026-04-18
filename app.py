@@ -75,18 +75,19 @@ st.markdown(
     background: rgba(255, 255, 255, 0.12);
 }
 
-/* 💎 DARK GLASSMORPHISM BORDERS FOR SIDEBAR WIDGETS (Matches Chat Input!) 💎 */
-[data-testid="stVerticalBlockBorderWrapper"] {
-    background: rgba(15, 32, 39, 0.75) !important;
+/* 💎 BRUTE-FORCE DARK BORDERS FOR SIDEBAR WIDGETS 💎 */
+.stApp [data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: rgba(15, 32, 39, 0.75) !important; /* Dark chat-box background */
+    background-image: none !important;
     backdrop-filter: blur(15px) !important;
-    border: 1px solid rgba(137, 247, 254, 0.4) !important;
-    border-radius: 15px !important; /* Matched the 15px radius of the text box */
-    box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important; /* Matched the deep shadow */
+    border: 1px solid rgba(137, 247, 254, 0.4) !important; /* Glowing blue border */
+    border-radius: 15px !important; 
+    box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important; /* Deep shadow */
     transition: all 0.3s ease-in-out !important;
 }
-[data-testid="stVerticalBlockBorderWrapper"]:hover {
-    border-color: rgba(137, 247, 254, 0.8) !important;
-    box-shadow: 0px 12px 45px rgba(0, 0, 0, 0.6) !important;
+.stApp [data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: rgba(137, 247, 254, 0.9) !important;
+    box-shadow: 0px 12px 45px rgba(137, 247, 254, 0.2) !important;
 }
 
 /* Updated Button Aesthetic */
