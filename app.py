@@ -442,15 +442,27 @@ with main_col:
                     )
 
     # Display historical chat history in reverse (NEWEST FIRST)
-    # We use `history_to_render` because the new message was already rendered above if `prompt` was active.
-    for msg in reversed(history_to_render):
-        avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
+    # We group messages into conversational turns so the user's prompt appears above the AI's response.
+    turns = []
+    current_turn = []
+    for msg in history_to_render:
+        if msg["role"] == "user" and current_turn:
+            turns.append(current_turn)
+            current_turn = [msg]
+        else:
+            current_turn.append(msg)
+    if current_turn:
+        turns.append(current_turn)
 
-        with st.chat_message(msg["role"], avatar=avatar):
-            if msg.get("is_card"):
-                st.markdown(
-                    f'<div class="playful-card">{msg["content"]}</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(msg["content"])
+    for turn in reversed(turns):
+        for msg in turn:
+            avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
+    
+            with st.chat_message(msg["role"], avatar=avatar):
+                if msg.get("is_card"):
+                    st.markdown(
+                        f'<div class="playful-card">{msg["content"]}</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(msg["content"])
