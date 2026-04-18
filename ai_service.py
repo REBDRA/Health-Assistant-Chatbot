@@ -24,8 +24,9 @@ class HealthResponse(BaseModel):
 
 # --- 2. THE AGENT CONFIGURATION ---
 
-# Initialize the agent with the result type for structured output
-health_agent = Agent(model="groq:llama-3.3-70b-versatile", result_type=HealthResponse)
+# FIX: We remove result_type from here.
+# This stops the 'Unknown keyword argument' error immediately.
+health_agent = Agent(model="groq:llama-3.3-70b-versatile")
 
 
 @health_agent.system_prompt
@@ -92,6 +93,7 @@ class HealthAIFacade:
 
         full_input = f"History:\n{history_text}\nUser: {user_prompt}"
 
-        # Call run_sync without result_type, as it is already defined on the agent
-        result = health_agent.run_sync(full_input)
-        return result.data.model_dump()
+        # Tell the agent the expected output schema at run time.
+        # In pydantic-ai v1.x the parameter is called 'output_type' (not 'result_type').
+        result = health_agent.run_sync(full_input, output_type=HealthResponse)
+        return result.output.model_dump()
