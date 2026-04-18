@@ -58,8 +58,6 @@ st.markdown(
 <style>
 .stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
 [data-testid="block-container"] { padding-bottom: 150px; }
-[data-testid="stChatMessage"] { border-radius: 15px; padding: 10px; transition: 0.3s; }
-[data-testid="stChatMessage"]:hover { transform: scale(1.01); background: rgba(255, 255, 255, 0.03); }
 
 /* Aesthetic Card CSS */
 .playful-card {
@@ -82,7 +80,7 @@ st.markdown(
     background: rgba(255, 255, 255, 0.12);
 }
 
-/* Updated Button Aesthetic - Removed the ">" so it works on buttons with tooltips! */
+/* Updated Button Aesthetic */
 div[data-testid="stButton"] button {
     background: rgba(255, 255, 255, 0.08) !important;
     backdrop-filter: blur(10px) !important;
@@ -203,6 +201,35 @@ with left_col:
                 status, color = "Obese", "🔴"
 
             st.success(f"**BMI: {bmi:.1f}**\n\n{color} {status}")
+    # ------------------------------------------
+    # 💬 Chat Controls (Edit / Undo)
+    # ------------------------------------------
+    with st.container(border=True):
+        st.markdown("#### 💬 Chat Controls")
+        col_undo, col_clear = st.columns(2)
+
+        # Undo button to act as an "Edit" function
+        if col_undo.button(
+            "⏪ Undo Last", help="Remove your last message", use_container_width=True
+        ):
+            # Make sure we don't delete the default welcome message
+            if "messages" in st.session_state and len(st.session_state.messages) > 1:
+                # Remove the last two messages (The Bot's reply, and the User's prompt)
+                st.session_state.messages = st.session_state.messages[:-2]
+                st.rerun()
+
+        # Clear chat button
+        if col_clear.button(
+            "🗑️ Clear All", help="Start a fresh chat", use_container_width=True
+        ):
+            st.session_state.messages = [
+                {
+                    "role": "assistant",
+                    "content": "Hello! Describe your symptoms or ask a general health question.",
+                    "is_card": False,
+                }
+            ]
+            st.rerun()
 
 # ------------------------------------------
 # 💡 RIGHT COLUMN: Wellness Hub
