@@ -57,7 +57,7 @@ st.markdown(
     """
 <style>
 .stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
-[data-testid="block-container"] { padding-bottom: 150px; }
+[data-testid="block-container"] { padding-bottom: 30px; } /* FIX: Removed the massive 150px gap */
 
 /* Aesthetic Card CSS */
 .playful-card {
@@ -112,11 +112,6 @@ div[data-testid="stButton"] button:hover {
     z-index: 999999;
     pointer-events: none;
     text-align: center;
-}
-
-/* Add slight padding to bottom block to ensure input box doesn't cover footer */
-[data-testid="stBottomBlockContainer"] {
-    padding-bottom: 35px !important;
 }
 </style>
 
