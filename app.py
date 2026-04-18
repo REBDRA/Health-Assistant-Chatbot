@@ -232,8 +232,7 @@ with right_col:
 # ------------------------------------------
 with main_col:
     # 🖼️ Cool 3D Robot Image (Header)
-    AI_AVATAR_URL = "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Robot.png"
-
+    AI_AVATAR_URL = "🤖"
     col_img, col_title = st.columns([1, 4])
     with col_img:
         st.image(AI_AVATAR_URL, width=80)
