@@ -134,8 +134,8 @@ div[data-testid="stButton"] button:hover {
 
 /* 💎 GEMINI-STYLE FLOATING CHAT INPUT 💎 */
 div[data-testid="stChatInput"] {
-    position: sticky !important;
-    bottom: 30px !important;
+    position: relative !important;
+    bottom: auto !important;
     z-index: 9999 !important;
     background: rgba(15, 32, 39, 0.75) !important;
     backdrop-filter: blur(15px) !important;
@@ -143,6 +143,14 @@ div[data-testid="stChatInput"] {
     border: 1px solid rgba(137, 247, 254, 0.4) !important;
     box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important;
     padding: 5px !important;
+    margin-bottom: 20px !important;
+}
+
+/* Override Streamlit's default bottom-pinning for chat input */
+div[data-testid="stChatInputContainer"] {
+    position: relative !important;
+    bottom: auto !important;
+    background: transparent !important;
 }
 
 /* Custom Fixed Footer for Copyright */
@@ -337,35 +345,28 @@ with main_col:
             }
         ]
 
-    # Display chat history naturally (No scrolling container)
-    for msg in st.session_state.messages:
-        avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
+    # Input processing right at the top
+    prompt = st.chat_input("Describe your symptoms or ask a health question...")
 
-        with st.chat_message(msg["role"], avatar=avatar):
-            if msg.get("is_card"):
-                st.markdown(
-                    f'<div class="playful-card">{msg["content"]}</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(msg["content"])
+    # We need to capture the state of messages *before* rendering, so history doesn't duplicate the new response
+    history_to_render = list(st.session_state.messages)
 
-    # Input processing (Sticky floating CSS handles the bottom pinning)
-    if prompt := st.chat_input("Describe your symptoms or ask a health question..."):
-        current_history = list(st.session_state.messages)
-
+    if prompt:
+        # Save user message to state
         st.session_state.messages.append(
             {"role": "user", "content": prompt, "is_card": False}
         )
 
+        # 1. Render user message at the very top immediately
         with st.chat_message("user", avatar="👤"):
             st.markdown(prompt)
 
+        # 2. Render AI response right below the user message, with spinner
         with st.chat_message("assistant", avatar=AI_AVATAR):
             with st.spinner("Analyzing..."):
                 try:
                     data = health_ai.get_structured_response(
-                        user_prompt=prompt, chat_history=current_history
+                        user_prompt=prompt, chat_history=history_to_render
                     )
 
                     if not data.get("is_valid_query", True):
@@ -439,3 +440,17 @@ with main_col:
                             "is_card": False,
                         }
                     )
+
+    # Display historical chat history in reverse (NEWEST FIRST)
+    # We use `history_to_render` because the new message was already rendered above if `prompt` was active.
+    for msg in reversed(history_to_render):
+        avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
+
+        with st.chat_message(msg["role"], avatar=avatar):
+            if msg.get("is_card"):
+                st.markdown(
+                    f'<div class="playful-card">{msg["content"]}</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(msg["content"])
