@@ -95,7 +95,7 @@ div[data-testid="stButton"] > button {
 }
 
 div[data-testid="stButton"] > button:hover {
-    transform: translateY(-4px) !important;
+    transform: translateY(-4px) !important; /* Pops straight up! */
     box-shadow: 0px 8px 20px rgba(137, 247, 254, 0.25) !important;
     border-color: rgba(137, 247, 254, 0.8) !important;
     background: rgba(255, 255, 255, 0.15) !important;
