@@ -230,9 +230,6 @@ with right_col:
 # ------------------------------------------
 # 🤖 MAIN COLUMN: The Chatbot Interface
 # ------------------------------------------
-# ------------------------------------------
-# 🤖 MAIN COLUMN: The Chatbot Interface
-# ------------------------------------------
 with main_col:
     # 🖼️ Cool Robot Avatar
     AI_AVATAR = "🤖"
@@ -252,8 +249,6 @@ with main_col:
         "👋 Hi! Tell me what's bothering you, or ask me a health question — I’ll help you out 💙"
     )
 
-    # Chat history initialization...
-
     # Chat history initialization
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -266,7 +261,6 @@ with main_col:
 
     # Display chat history
     for msg in st.session_state.messages:
-        # FIX: Change AI_AVATAR_URL to AI_AVATAR right here 👇
         avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
 
         with st.chat_message(msg["role"], avatar=avatar):
@@ -278,6 +272,97 @@ with main_col:
             else:
                 st.markdown(msg["content"])
 
+    # Input processing
+    if prompt := st.chat_input("Describe your symptoms or ask a health question..."):
+        current_history = list(st.session_state.messages)
+
+        # Append user prompt to state
+        st.session_state.messages.append(
+            {"role": "user", "content": prompt, "is_card": False}
+        )
+
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
+
+        # FINAL FIX: Uses AI_AVATAR here when the bot generates a new response
+        with st.chat_message("assistant", avatar=AI_AVATAR):
+            with st.spinner("Analyzing..."):
+                try:
+                    # Call the Facade instead of raw API
+                    data = health_ai.get_structured_response(
+                        user_prompt=prompt, chat_history=current_history
+                    )
+
+                    if not data.get("is_valid_query", True):
+                        output = data.get(
+                            "error_message",
+                            "I didn't quite understand that. Could you clarify?",
+                        )
+                        is_card = False
+                    else:
+                        is_card = True
+                        output = ""
+
+                        # --- BRANCH 1: General Health Questions ---
+                        if data.get("query_type") == "general_health":
+                            direct_answer = data.get("direct_answer", "")
+                            advice = data.get("advice", "")
+
+                            if direct_answer:
+                                output += f"🩺 **Health Answer:**\n{direct_answer}\n"
+                            if advice:
+                                output += f"\n💡 **Additional Advice:**\n{advice}\n"
+
+                        # --- BRANCH 2: Symptom Triage & Remedies ---
+                        else:
+                            remedies = data.get("remedies", [])
+                            if remedies:
+                                remedies_text = "\n".join(
+                                    [f"{i}. {r}" for i, r in enumerate(remedies, 1)]
+                                )
+                                output += f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
+
+                            advice = data.get("advice", "")
+                            if advice:
+                                output += f"\n💡 **General Health Advice:**\n{advice}\n"
+
+                            doctors = data.get("doctors", [])
+                            if doctors:
+                                output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
+                                for doc in doctors:
+                                    stars = get_stars(doc.get("rating", ""))
+                                    output += (
+                                        f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
+                                        f"📍 {doc.get('location', 'Unknown')}\n"
+                                        f"📞 {doc.get('phone', 'N/A')}\n"
+                                        f"⭐ {stars}\n\n---\n\n"
+                                    )
+
+                            output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
+
+                    # Render to screen
+                    if is_card:
+                        st.markdown(
+                            f'<div class="playful-card">{output}</div>',
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(output)
+
+                    # Save to session state so it survives reloads
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": output, "is_card": is_card}
+                    )
+
+                except Exception as e:
+                    st.error(f"System Error: {e}")
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": "Something went wrong. Try again.",
+                            "is_card": False,
+                        }
+                    )
     # Input processing
     if prompt := st.chat_input("Describe your symptoms or ask a health question..."):
         # We save the current history to pass to the facade (excluding the prompt we are about to add)
@@ -292,7 +377,8 @@ with main_col:
         with st.chat_message("user", avatar="👤"):
             st.markdown(prompt)
 
-        with st.chat_message("assistant", avatar=AI_AVATAR_URL):
+        # FIX: Right here! Changed AI_AVATAR_URL to AI_AVATAR
+        with st.chat_message("assistant", avatar=AI_AVATAR):
             with st.spinner("Analyzing..."):
                 try:
                     # 🚀 Call the Facade instead of raw API
