@@ -312,20 +312,25 @@ with main_col:
             }
         ]
 
-    # Display chat history
-    for msg in st.session_state.messages:
-        avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
+    # ✅ THE FIX: Create a fixed-height scrollable container for the chat!
+    # This locks the window size so the input box at the bottom never moves.
+    chat_container = st.container(height=500, border=False)
 
-        with st.chat_message(msg["role"], avatar=avatar):
-            if msg.get("is_card"):
-                st.markdown(
-                    f'<div class="playful-card">{msg["content"]}</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(msg["content"])
+    # Display chat history INSIDE the scrollable container
+    with chat_container:
+        for msg in st.session_state.messages:
+            avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
 
-    # Input processing
+            with st.chat_message(msg["role"], avatar=avatar):
+                if msg.get("is_card"):
+                    st.markdown(
+                        f'<div class="playful-card">{msg["content"]}</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(msg["content"])
+
+    # Input processing (OUTSIDE the container, so it stays locked at the bottom)
     if prompt := st.chat_input("Describe your symptoms or ask a health question..."):
         current_history = list(st.session_state.messages)
 
@@ -334,85 +339,94 @@ with main_col:
             {"role": "user", "content": prompt, "is_card": False}
         )
 
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(prompt)
+        # Render the new user prompt INSIDE the scrollable container
+        with chat_container:
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(prompt)
 
-        # Uses AI_AVATAR here when the bot generates a new response
-        with st.chat_message("assistant", avatar=AI_AVATAR):
-            with st.spinner("Analyzing..."):
-                try:
-                    # Call the Facade instead of raw API
-                    data = health_ai.get_structured_response(
-                        user_prompt=prompt, chat_history=current_history
-                    )
-
-                    if not data.get("is_valid_query", True):
-                        output = data.get(
-                            "error_message",
-                            "I didn't quite understand that. Could you clarify?",
+        # Render the bot response INSIDE the scrollable container
+        with chat_container:
+            with st.chat_message("assistant", avatar=AI_AVATAR):
+                with st.spinner("Analyzing..."):
+                    try:
+                        # Call the Facade instead of raw API
+                        data = health_ai.get_structured_response(
+                            user_prompt=prompt, chat_history=current_history
                         )
-                        is_card = False
-                    else:
-                        is_card = True
-                        output = ""
 
-                        # --- BRANCH 1: General Health Questions ---
-                        if data.get("query_type") == "general_health":
-                            direct_answer = data.get("direct_answer", "")
-                            advice = data.get("advice", "")
-
-                            if direct_answer:
-                                output += f"🩺 **Health Answer:**\n{direct_answer}\n"
-                            if advice:
-                                output += f"\n💡 **Additional Advice:**\n{advice}\n"
-
-                        # --- BRANCH 2: Symptom Triage & Remedies ---
+                        if not data.get("is_valid_query", True):
+                            output = data.get(
+                                "error_message",
+                                "I didn't quite understand that. Could you clarify?",
+                            )
+                            is_card = False
                         else:
-                            remedies = data.get("remedies", [])
-                            if remedies:
-                                remedies_text = "\n".join(
-                                    [f"{i}. {r}" for i, r in enumerate(remedies, 1)]
-                                )
-                                output += f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
+                            is_card = True
+                            output = ""
 
-                            advice = data.get("advice", "")
-                            if advice:
-                                output += f"\n💡 **General Health Advice:**\n{advice}\n"
+                            # --- BRANCH 1: General Health Questions ---
+                            if data.get("query_type") == "general_health":
+                                direct_answer = data.get("direct_answer", "")
+                                advice = data.get("advice", "")
 
-                            doctors = data.get("doctors", [])
-                            if doctors:
-                                output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
-                                for doc in doctors:
-                                    stars = get_stars(doc.get("rating", ""))
+                                if direct_answer:
                                     output += (
-                                        f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
-                                        f"📍 {doc.get('location', 'Unknown')}\n"
-                                        f"📞 {doc.get('phone', 'N/A')}\n"
-                                        f"⭐ {stars}\n\n---\n\n"
+                                        f"🩺 **Health Answer:**\n{direct_answer}\n"
+                                    )
+                                if advice:
+                                    output += f"\n💡 **Additional Advice:**\n{advice}\n"
+
+                            # --- BRANCH 2: Symptom Triage & Remedies ---
+                            else:
+                                remedies = data.get("remedies", [])
+                                if remedies:
+                                    remedies_text = "\n".join(
+                                        [f"{i}. {r}" for i, r in enumerate(remedies, 1)]
+                                    )
+                                    output += f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
+
+                                advice = data.get("advice", "")
+                                if advice:
+                                    output += (
+                                        f"\n💡 **General Health Advice:**\n{advice}\n"
                                     )
 
-                            output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
+                                doctors = data.get("doctors", [])
+                                if doctors:
+                                    output += (
+                                        "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
+                                    )
+                                    for doc in doctors:
+                                        stars = get_stars(doc.get("rating", ""))
+                                        output += (
+                                            f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
+                                            f"📍 {doc.get('location', 'Unknown')}\n"
+                                            f"📞 {doc.get('phone', 'N/A')}\n"
+                                            f"⭐ {stars}\n\n---\n\n"
+                                        )
 
-                    # Render to screen
-                    if is_card:
-                        st.markdown(
-                            f'<div class="playful-card">{output}</div>',
-                            unsafe_allow_html=True,
+                                output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
+
+                        # Render to screen
+                        if is_card:
+                            st.markdown(
+                                f'<div class="playful-card">{output}</div>',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(output)
+
+                        # Save to session state so it survives reloads
+                        st.session_state.messages.append(
+                            {"role": "assistant", "content": output, "is_card": is_card}
                         )
-                    else:
-                        st.markdown(output)
 
-                    # Save to session state so it survives reloads
-                    st.session_state.messages.append(
-                        {"role": "assistant", "content": output, "is_card": is_card}
-                    )
-
-                except Exception as e:
-                    st.error(f"System Error: {e}")
-                    st.session_state.messages.append(
-                        {
-                            "role": "assistant",
-                            "content": "Something went wrong. Try again.",
-                            "is_card": False,
-                        }
-                    )
+                    except Exception as e:
+                        st.error(f"System Error: {e}")
+                        st.session_state.messages.append(
+                            {
+                                "role": "assistant",
+                                "content": "Something went wrong. Try again.",
+                                "is_card": False,
+                            }
+                        )
