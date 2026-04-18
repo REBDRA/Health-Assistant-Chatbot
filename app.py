@@ -75,18 +75,18 @@ st.markdown(
     background: rgba(255, 255, 255, 0.12);
 }
 
-/* 💎 BEAUTIFUL BORDERS FOR SIDEBAR WIDGETS 💎 */
+/* 💎 DARK GLASSMORPHISM BORDERS FOR SIDEBAR WIDGETS (Matches Chat Input!) 💎 */
 [data-testid="stVerticalBlockBorderWrapper"] {
-    border: 1px solid rgba(137, 247, 254, 0.3) !important;
-    border-radius: 20px !important;
-    background: rgba(255, 255, 255, 0.05) !important;
-    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1) !important;
+    background: rgba(15, 32, 39, 0.75) !important;
+    backdrop-filter: blur(15px) !important;
+    border: 1px solid rgba(137, 247, 254, 0.4) !important;
+    border-radius: 15px !important; /* Matched the 15px radius of the text box */
+    box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important; /* Matched the deep shadow */
     transition: all 0.3s ease-in-out !important;
 }
 [data-testid="stVerticalBlockBorderWrapper"]:hover {
-    border-color: rgba(137, 247, 254, 0.7) !important;
-    box-shadow: 0px 8px 25px rgba(137, 247, 254, 0.2) !important;
-    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(137, 247, 254, 0.8) !important;
+    box-shadow: 0px 12px 45px rgba(0, 0, 0, 0.6) !important;
 }
 
 /* Updated Button Aesthetic */
