@@ -43,6 +43,9 @@ def doctor_completeness_score(doc: dict) -> int:
     # Rating present
     if rating and rating.lower() not in ("", "verified"):
         score += 1
+    # Link present
+    if doc.get("link"):
+        score += 1
 
     return score
 
@@ -410,10 +413,22 @@ with main_col:
                                 output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
                                 for doc in doctors:
                                     stars = get_stars(doc.get("rating", ""))
+                                    
+                                    phone_val = doc.get("phone", "N/A")
+                                    link_val = doc.get("link", "")
+                                    
+                                    if link_val:
+                                        if "visit website" in phone_val.lower() or "website" in phone_val.lower():
+                                            phone_display = f"[{phone_val}]({link_val})"
+                                        else:
+                                            phone_display = f"{phone_val} | [Visit Website]({link_val})"
+                                    else:
+                                        phone_display = phone_val
+                                        
                                     output += (
                                         f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
                                         f"📍 {doc.get('location', 'Unknown')}\n"
-                                        f"📞 {doc.get('phone', 'N/A')}\n"
+                                        f"📞 {phone_display}\n"
                                         f"⭐ {stars}\n\n---\n\n"
                                     )
 
