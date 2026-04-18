@@ -24,9 +24,8 @@ class HealthResponse(BaseModel):
 
 # --- 2. THE AGENT CONFIGURATION ---
 
-# FIX: We remove result_type from here.
-# This stops the 'Unknown keyword argument' error immediately.
-health_agent = Agent(model="groq:llama-3.3-70b-versatile")
+# Initialize the agent with the result type for structured output
+health_agent = Agent(model="groq:llama-3.3-70b-versatile", result_type=HealthResponse)
 
 
 @health_agent.system_prompt
@@ -93,7 +92,6 @@ class HealthAIFacade:
 
         full_input = f"History:\n{history_text}\nUser: {user_prompt}"
 
-        # FIX: We tell the agent what the result_type is RIGHT HERE.
-        # This is the 'Building Block: Output Validation' in action.
-        result = health_agent.run_sync(full_input, result_type=HealthResponse)
+        # Call run_sync without result_type, as it is already defined on the agent
+        result = health_agent.run_sync(full_input)
         return result.data.model_dump()
