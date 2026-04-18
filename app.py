@@ -230,12 +230,20 @@ with right_col:
 # ------------------------------------------
 # 🤖 MAIN COLUMN: The Chatbot Interface
 # ------------------------------------------
+# ------------------------------------------
+# 🤖 MAIN COLUMN: The Chatbot Interface
+# ------------------------------------------
 with main_col:
-    # 🖼️ Cool 3D Robot Image (Header)
-    AI_AVATAR_URL = "🤖"
+    # 🖼️ Cool Robot Avatar
+    AI_AVATAR = "🤖"
+
     col_img, col_title = st.columns([1, 4])
     with col_img:
-        st.image(AI_AVATAR_URL, width=80)
+        # FIX: Render the emoji as large text instead of using st.image()
+        st.markdown(
+            f"<div style='font-size: 60px; text-align: center; margin-top: 10px;'>{AI_AVATAR}</div>",
+            unsafe_allow_html=True,
+        )
     with col_title:
         st.title("Health Assistant")
 
@@ -243,6 +251,8 @@ with main_col:
     st.info(
         "👋 Hi! Tell me what's bothering you, or ask me a health question — I’ll help you out 💙"
     )
+
+    # Chat history initialization...
 
     # Chat history initialization
     if "messages" not in st.session_state:
