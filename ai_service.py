@@ -24,14 +24,11 @@ class HealthResponse(BaseModel):
 
 # --- 2. THE AGENT CONFIGURATION ---
 
-# Initialize the agent with ONLY the model and result type
-health_agent = Agent(
-    model="groq:llama-3.3-70b-versatile",
-    result_type=HealthResponse,
-)
+# FIX: We remove result_type from here.
+# This stops the 'Unknown keyword argument' error immediately.
+health_agent = Agent(model="groq:llama-3.3-70b-versatile")
 
 
-# Use the decorator to add the "Building Block: Instructions"
 @health_agent.system_prompt
 def add_health_instructions() -> str:
     return (
@@ -96,6 +93,7 @@ class HealthAIFacade:
 
         full_input = f"History:\n{history_text}\nUser: {user_prompt}"
 
-        # CRITICAL FIX: Use .data to get the Pydantic object
-        result = health_agent.run_sync(full_input)
+        # FIX: We tell the agent what the result_type is RIGHT HERE.
+        # This is the 'Building Block: Output Validation' in action.
+        result = health_agent.run_sync(full_input, result_type=HealthResponse)
         return result.data.model_dump()
