@@ -53,7 +53,7 @@ st.markdown(
 .stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
 [data-testid="block-container"] { padding-bottom: 30px; } 
 
-/* Aesthetic Card CSS */
+/* Aesthetic Card CSS (Chat Bubbles) */
 .playful-card {
     background: rgba(255, 255, 255, 0.08); 
     backdrop-filter: blur(10px); 
@@ -73,6 +73,20 @@ st.markdown(
     box-shadow: 0px 12px 30px rgba(137, 247, 254, 0.2); 
     border-color: rgba(137, 247, 254, 0.8);
     background: rgba(255, 255, 255, 0.12);
+}
+
+/* 💎 BEAUTIFUL BORDERS FOR SIDEBAR WIDGETS 💎 */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1px solid rgba(137, 247, 254, 0.3) !important;
+    border-radius: 20px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.3s ease-in-out !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: rgba(137, 247, 254, 0.7) !important;
+    box-shadow: 0px 8px 25px rgba(137, 247, 254, 0.2) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Updated Button Aesthetic */
