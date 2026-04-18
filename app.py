@@ -82,8 +82,8 @@ st.markdown(
     background: rgba(255, 255, 255, 0.12);
 }
 
-/* Updated Button Aesthetic */
-div[data-testid="stButton"] > button {
+/* Updated Button Aesthetic - Removed the ">" so it works on buttons with tooltips! */
+div[data-testid="stButton"] button {
     background: rgba(255, 255, 255, 0.08) !important;
     backdrop-filter: blur(10px) !important;
     border: 1px solid rgba(137, 247, 254, 0.3) !important;
@@ -94,8 +94,8 @@ div[data-testid="stButton"] > button {
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1) !important;
 }
 
-div[data-testid="stButton"] > button:hover {
-    transform: translateY(-4px) !important; /* Pops straight up! */
+div[data-testid="stButton"] button:hover {
+    transform: translateY(-4px) !important; 
     box-shadow: 0px 8px 20px rgba(137, 247, 254, 0.25) !important;
     border-color: rgba(137, 247, 254, 0.8) !important;
     background: rgba(255, 255, 255, 0.15) !important;
