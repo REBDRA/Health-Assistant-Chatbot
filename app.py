@@ -266,7 +266,9 @@ with main_col:
 
     # Display chat history
     for msg in st.session_state.messages:
-        avatar = AI_AVATAR_URL if msg["role"] == "assistant" else "👤"
+        # FIX: Change AI_AVATAR_URL to AI_AVATAR right here 👇
+        avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
+
         with st.chat_message(msg["role"], avatar=avatar):
             if msg.get("is_card"):
                 st.markdown(
