@@ -60,22 +60,25 @@ st.markdown(
 [data-testid="block-container"] { padding-bottom: 150px; }
 [data-testid="stChatMessage"] { border-radius: 15px; padding: 10px; transition: 0.3s; }
 [data-testid="stChatMessage"]:hover { transform: scale(1.01); background: rgba(255, 255, 255, 0.03); }
+
+/* Updated Aesthetic Card CSS */
 .playful-card {
     background: rgba(255, 255, 255, 0.08); 
     backdrop-filter: blur(10px); 
-    border: 2px dashed rgba(137, 247, 254, 0.5); 
+    border: 1px solid rgba(137, 247, 254, 0.3); /* Clean, solid, semi-transparent border */
     border-radius: 20px; 
     padding: 20px;
     color: #f1f1f1; 
-    font-family: 'Nunito', 'Comic Sans MS', sans-serif; 
+    font-family: 'Nunito', sans-serif; /* Removed Comic Sans for a professional aesthetic */
     white-space: pre-wrap; 
     line-height: 1.6;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); /* Subtle base shadow */
+    transition: all 0.3s ease-in-out; /* Smooth, straight transition */
 }
 .playful-card:hover {
-    transform: translateY(-5px) rotate(0.5deg); 
-    box-shadow: 0px 10px 25px rgba(137, 247, 254, 0.15); 
-    border-color: #89f7fe;
+    transform: translateY(-6px); /* Pops straight up, no tilt! */
+    box-shadow: 0px 12px 30px rgba(137, 247, 254, 0.2); /* Beautiful glowing shadow underneath */
+    border-color: rgba(137, 247, 254, 0.8);
     background: rgba(255, 255, 255, 0.12);
 }
 
