@@ -4,71 +4,53 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 
 
-# --- 1. SCHEMAS (The Building Blocks of Output) ---
-
-
+# --- 1. SCHEMAS ---
 class Doctor(BaseModel):
-    name: str = Field(
-        description="Name and specialty in brackets, e.g. 'Dr. Ray (Cardiologist)'."
-    )
+    name: str = Field(description="Name and specialty in brackets.")
     phone: str
     location: str
-    rating: str = Field(description="Format: 'X.X/5'")
+    rating: str
 
 
 class HealthResponse(BaseModel):
-    is_valid_query: bool = Field(
-        description="False if the input is gibberish or non-health related."
-    )
-    query_type: str = Field(description="Either 'symptom_triage' or 'general_health'.")
-    direct_answer: str = Field(
-        default="", description="The answer for general health questions."
-    )
-    remedies: List[str] = Field(
-        default=[], description="Steps the user can take at home."
-    )
-    advice: str = Field(
-        default="", description="Broader lifestyle or preventative tips."
-    )
-    doctors: List[Doctor] = Field(
-        default=[], description="Exactly 3 doctors fetched from the search tool."
-    )
-    error_message: str = Field(
-        default="", description="Message shown if query is invalid."
-    )
+    is_valid_query: bool
+    query_type: str
+    direct_answer: str = ""
+    remedies: List[str] = []
+    advice: str = ""
+    doctors: List[Doctor] = []
+    error_message: str = ""
 
 
 # --- 2. THE AGENT CONFIGURATION ---
 
-# UPDATED: Changed 'system_prompt' to 'instructions'
+# Initialize the agent with ONLY the model and result type
 health_agent = Agent(
     model="groq:llama-3.3-70b-versatile",
     result_type=HealthResponse,
-    instructions=(
-        "You are a strict Medical Triage AI for West Bengal, India. "
-        "1. If symptoms are mentioned, you MUST use the 'search_verified_doctors' tool to find real doctors. "
-        "2. If it is a general health question, answer directly. "
-        "3. Always maintain a professional and empathetic tone."
-    ),
 )
 
 
-# --- 3. TOOLS (The 'Hands' of the Agent) ---
+# Use the decorator to add the "Building Block: Instructions"
+@health_agent.system_prompt
+def add_health_instructions() -> str:
+    return (
+        "You are a highly intelligent and strict Medical Triage & Health AI. "
+        "Evaluate the user's input. If it is a symptom, provide triage, remedies, and 3 realistic doctors. "
+        "If it is a general health question, provide a direct answer and advice. "
+        "If it is not a health query, reject it politely."
+    )
 
 
+# --- 3. TOOLS ---
 @health_agent.tool
 def search_verified_doctors(ctx: RunContext[None], symptom: str) -> List[dict]:
-    """
-    Calls a local database to find real doctors in West Bengal based on symptoms.
-    This provides 'Grounding' to prevent the LLM from hallucinating names.
-    """
+    """Find real doctors in West Bengal based on symptoms."""
     s = symptom.lower()
     if any(word in s for word in ["skin", "rash", "itch", "acne"]):
         specialty = "Dermatologist"
     elif any(word in s for word in ["heart", "chest", "breath"]):
         specialty = "Cardiologist"
-    elif any(word in s for word in ["eye", "vision", "blur"]):
-        specialty = "Ophthalmologist"
     else:
         specialty = "General Physician"
 
@@ -86,12 +68,6 @@ def search_verified_doctors(ctx: RunContext[None], symptom: str) -> List[dict]:
                 "location": "Howrah",
                 "rating": "4.7/5",
             },
-            {
-                "name": "Dr. P. Sen (Dermatologist)",
-                "phone": "98300-33333",
-                "location": "Bidhannagar",
-                "rating": "4.9/5",
-            },
         ],
         "General Physician": [
             {
@@ -99,27 +75,13 @@ def search_verified_doctors(ctx: RunContext[None], symptom: str) -> List[dict]:
                 "phone": "90000-55555",
                 "location": "Salt Lake",
                 "rating": "4.9/5",
-            },
-            {
-                "name": "Dr. M. Khan (GP)",
-                "phone": "90000-66666",
-                "location": "Park Street",
-                "rating": "4.6/5",
-            },
-            {
-                "name": "Dr. R. Dutta (GP)",
-                "phone": "90000-77777",
-                "location": "New Town",
-                "rating": "4.7/5",
-            },
+            }
         ],
     }
     return db.get(specialty, db["General Physician"])
 
 
 # --- 4. THE FACADE ---
-
-
 class HealthAIFacade:
     def __init__(self, api_key: str):
         os.environ["GROQ_API_KEY"] = api_key
@@ -134,7 +96,6 @@ class HealthAIFacade:
 
         full_input = f"History:\n{history_text}\nUser: {user_prompt}"
 
-        # The Agentic Loop: Reason -> Tool Use -> Observe -> Output
+        # CRITICAL FIX: Use .data to get the Pydantic object
         result = health_agent.run_sync(full_input)
-
         return result.data.model_dump()
