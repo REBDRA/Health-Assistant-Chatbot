@@ -1,79 +1,144 @@
 import os
+from typing import List
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
 
 
-# 1. Define the exact structure for the Doctors
+# --- 1. SCHEMAS (The Building Blocks of Output) ---
+
+
 class Doctor(BaseModel):
     name: str = Field(
-        description="Must include specialty in brackets, e.g. 'Dr. Amit Sharma (Ophthalmologist)'. Generate realistic Indian names."
+        description="Name and specialty in brackets, e.g. 'Dr. Ray (Cardiologist)'."
     )
     phone: str
-    location: str = Field(description="Must be a location in West Bengal, India.")
+    location: str
     rating: str = Field(description="Format: 'X.X/5'")
 
 
-# 2. Define the main response structure
 class HealthResponse(BaseModel):
     is_valid_query: bool = Field(
-        description="False if user states gibberish, contradiction, or non-health joke."
+        description="False if the input is gibberish or non-health related."
     )
-    query_type: str = Field(
-        description="Must be exactly 'symptom_triage' or 'general_health'"
-    )
+    query_type: str = Field(description="Either 'symptom_triage' or 'general_health'.")
     direct_answer: str = Field(
-        default="", description="Fill ONLY if query_type is 'general_health'."
+        default="", description="The answer for general health questions."
     )
-    remedies: list[str] = Field(
-        default=[], description="Home remedies or solutions. ONLY for 'symptom_triage'."
+    remedies: List[str] = Field(
+        default=[], description="Steps the user can take at home."
     )
-    advice: str = Field(default="", description="General health advice.")
-    doctors: list[Doctor] = Field(
-        default=[],
-        description="Exactly 3 recommended doctors. ONLY for 'symptom_triage'.",
+    advice: str = Field(
+        default="", description="Broader lifestyle or preventative tips."
+    )
+    doctors: List[Doctor] = Field(
+        default=[], description="Exactly 3 doctors fetched from the search tool."
     )
     error_message: str = Field(
-        default="", description="Polite error message if is_valid_query is false."
+        default="", description="Message shown if query is invalid."
     )
 
 
-# 3. Initialize the PydanticAI Agent
-# Llama 3.3 70B is highly reliable for strict schema generation on Groq
+# --- 2. THE AGENT CONFIGURATION ---
+
 health_agent = Agent(
     "groq:llama-3.3-70b-versatile",
     result_type=HealthResponse,
     system_prompt=(
-        "You are a highly intelligent and strict Medical Triage & Health AI. "
-        "Evaluate the user's input. If it is a symptom, provide triage, remedies, and 3 realistic doctors. "
-        "If it is a general health question, provide a direct answer and advice. "
-        "If it is not a health query, reject it politely."
+        "You are a strict Medical Triage AI for West Bengal, India. "
+        "1. If symptoms are mentioned, you MUST use the 'search_verified_doctors' tool to find real doctors. "
+        "2. If it is a general health question, answer directly. "
+        "3. Always maintain a professional and empathetic tone."
     ),
 )
 
 
-# 4. The Facade to connect to your Streamlit app
+# --- 3. TOOLS (The 'Hands' of the Agent) ---
+
+
+@health_agent.tool
+def search_verified_doctors(ctx: RunContext[None], symptom: str) -> List[dict]:
+    """
+    Calls a local database to find real doctors in West Bengal based on symptoms.
+    This provides 'Grounding' to prevent the LLM from hallucinating names.
+    """
+    # Logic to map symptoms to specialties
+    s = symptom.lower()
+    if any(word in s for word in ["skin", "rash", "itch", "acne"]):
+        specialty = "Dermatologist"
+    elif any(word in s for word in ["heart", "chest", "breath"]):
+        specialty = "Cardiologist"
+    elif any(word in s for word in ["eye", "vision", "blur"]):
+        specialty = "Ophthalmologist"
+    else:
+        specialty = "General Physician"
+
+    # Mock database (In production, this would be a SQL/API call)
+    db = {
+        "Dermatologist": [
+            {
+                "name": "Dr. A. Das (Dermatologist)",
+                "phone": "98300-11111",
+                "location": "Kolkata",
+                "rating": "4.8/5",
+            },
+            {
+                "name": "Dr. S. Roy (Dermatologist)",
+                "phone": "98300-22222",
+                "location": "Howrah",
+                "rating": "4.7/5",
+            },
+            {
+                "name": "Dr. P. Sen (Dermatologist)",
+                "phone": "98300-33333",
+                "location": "Bidhannagar",
+                "rating": "4.9/5",
+            },
+        ],
+        "General Physician": [
+            {
+                "name": "Dr. B. Chatterjee (GP)",
+                "phone": "90000-55555",
+                "location": "Salt Lake",
+                "rating": "4.9/5",
+            },
+            {
+                "name": "Dr. M. Khan (GP)",
+                "phone": "90000-66666",
+                "location": "Park Street",
+                "rating": "4.6/5",
+            },
+            {
+                "name": "Dr. R. Dutta (GP)",
+                "phone": "90000-77777",
+                "location": "New Town",
+                "rating": "4.7/5",
+            },
+        ],
+    }
+    return db.get(specialty, db["General Physician"])
+
+
+# --- 4. THE FACADE (The Bridge to Streamlit) ---
+
+
 class HealthAIFacade:
     def __init__(self, api_key: str):
-        # PydanticAI automatically looks for the GROQ_API_KEY environment variable
         os.environ["GROQ_API_KEY"] = api_key
 
     def get_structured_response(self, user_prompt: str, chat_history: list) -> dict:
-        # Format a brief chat history to give the AI context without overwhelming it
+        # Manage Context Window (Building Block: Context)
         history_text = ""
         if chat_history:
-            recent_history = [msg for msg in chat_history if not msg.get("is_card")][
-                -3:
-            ]
-            for msg in recent_history:
-                role = "User" if msg["role"] == "user" else "Assistant"
-                history_text += f"{role}: {msg['content']}\n"
+            # Only send the last 3 non-card messages to keep the window clean
+            recent = [m for m in chat_history if not m.get("is_card")][-3:]
+            for m in recent:
+                role = "User" if m["role"] == "user" else "Assistant"
+                history_text += f"{role}: {m['content']}\n"
 
-        full_prompt = (
-            f"Chat Context:\n{history_text}\n\nUser's latest message: {user_prompt}"
-        )
+        full_input = f"History:\n{history_text}\nUser: {user_prompt}"
 
-        # Run the agent. If the LLM breaks the schema, PydanticAI automatically retries!
-        result = health_agent.run_sync(full_prompt)
+        # The Agentic Loop: Reason -> Tool Use -> Observe -> Output
 
-        # Convert the resulting Pydantic object back to a dictionary for Streamlit
+        result = health_agent.run_sync(full_input)
+
         return result.data.model_dump()
