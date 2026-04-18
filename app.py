@@ -263,13 +263,7 @@ with left_col:
         if col_clear.button(
             "🗑️ Clear All", help="Start a fresh chat", use_container_width=True
         ):
-            st.session_state.messages = [
-                {
-                    "role": "assistant",
-                    "content": "Hello! Describe your symptoms or ask a general health question.",
-                    "is_card": False,
-                }
-            ]
+            st.session_state.messages = []
             st.rerun()
 
 # ------------------------------------------
@@ -340,13 +334,7 @@ with main_col:
 
     # Initialize messages
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": "Hello! Describe your symptoms or ask a general health question.",
-                "is_card": False,
-            }
-        ]
+        st.session_state.messages = []
 
     # Input processing right at the top
     prompt = st.chat_input("Describe your symptoms or ask a health question...")
