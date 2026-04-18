@@ -2,14 +2,19 @@ import os
 from typing import List
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
+from duckduckgo_search import DDGS  # 100% Free Live Search
 
 
 # --- 1. SCHEMAS ---
 class Doctor(BaseModel):
-    name: str = Field(description="Name and specialty in brackets.")
-    phone: str
-    location: str
-    rating: str
+    name: str = Field(
+        description="Actual name of the doctor or clinic found in search."
+    )
+    phone: str = Field(description="Contact number or 'Visit Website' if not found.")
+    location: str = Field(description="Specific area or address in West Bengal.")
+    rating: str = Field(
+        description="Rating from search results, or 'Verified' if found."
+    )
 
 
 class HealthResponse(BaseModel):
@@ -23,59 +28,31 @@ class HealthResponse(BaseModel):
 
 
 # --- 2. THE AGENT CONFIGURATION ---
-
-# FIX: We remove result_type from here.
-# This stops the 'Unknown keyword argument' error immediately.
 health_agent = Agent(model="groq:llama-3.3-70b-versatile")
 
 
 @health_agent.system_prompt
 def add_health_instructions() -> str:
     return (
-        "You are a highly intelligent and strict Medical Triage & Health AI. "
-        "Evaluate the user's input. If it is a symptom, provide triage, remedies, and 3 realistic doctors. "
-        "If it is a general health question, provide a direct answer and advice. "
-        "If it is not a health query, reject it politely."
+        "You are a strict Medical Triage AI for West Bengal, India. "
+        "1. For symptoms, you MUST use the 'get_live_doctors' tool to find real medical professionals. "
+        "2. Do NOT invent names. Extract real clinic names and phone numbers from the search results. "
+        "3. Provide helpful recovery steps in 'remedies'."
     )
 
 
-# --- 3. TOOLS ---
+# --- 3. THE FREE SEARCH TOOL (Grounding Building Block) ---
 @health_agent.tool
-def search_verified_doctors(ctx: RunContext[None], symptom: str) -> List[dict]:
-    """Find real doctors in West Bengal based on symptoms."""
-    s = symptom.lower()
-    if any(word in s for word in ["skin", "rash", "itch", "acne"]):
-        specialty = "Dermatologist"
-    elif any(word in s for word in ["heart", "chest", "breath"]):
-        specialty = "Cardiologist"
-    else:
-        specialty = "General Physician"
+def get_live_doctors(ctx: RunContext[None], symptom: str) -> str:
+    """Finds real practicing doctors and clinics in West Bengal via live web search."""
+    # We build a hyper-local query
+    query = f"best {symptom} specialists and clinics in Kolkata West Bengal phone number and address"
 
-    db = {
-        "Dermatologist": [
-            {
-                "name": "Dr. A. Das (Dermatologist)",
-                "phone": "98300-11111",
-                "location": "Kolkata",
-                "rating": "4.8/5",
-            },
-            {
-                "name": "Dr. S. Roy (Dermatologist)",
-                "phone": "98300-22222",
-                "location": "Howrah",
-                "rating": "4.7/5",
-            },
-        ],
-        "General Physician": [
-            {
-                "name": "Dr. B. Chatterjee (GP)",
-                "phone": "90000-55555",
-                "location": "Salt Lake",
-                "rating": "4.9/5",
-            }
-        ],
-    }
-    return db.get(specialty, db["General Physician"])
+    with DDGS() as ddgs:
+        # Fetch top 5 snippets from the live web
+        results = [r for r in ddgs.text(query, max_results=5)]
+
+    return str(results)
 
 
 # --- 4. THE FACADE ---
@@ -93,7 +70,7 @@ class HealthAIFacade:
 
         full_input = f"History:\n{history_text}\nUser: {user_prompt}"
 
-        # Tell the agent the expected output schema at run time.
-        # In pydantic-ai v1.x the parameter is called 'output_type' (not 'result_type').
+        # Building Block: The Agentic Loop
+        # The agent reasons -> calls get_live_doctors -> observes web data -> generates JSON
         result = health_agent.run_sync(full_input, output_type=HealthResponse)
         return result.output.model_dump()

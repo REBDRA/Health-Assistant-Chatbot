@@ -3,3 +3,4 @@ pydantic
 pydantic-ai[groq]
 python-dotenv
 groq
+duckduckgo-search
