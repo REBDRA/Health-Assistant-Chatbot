@@ -61,25 +61,45 @@ st.markdown(
 [data-testid="stChatMessage"] { border-radius: 15px; padding: 10px; transition: 0.3s; }
 [data-testid="stChatMessage"]:hover { transform: scale(1.01); background: rgba(255, 255, 255, 0.03); }
 
-/* Updated Aesthetic Card CSS */
+/* Aesthetic Card CSS */
 .playful-card {
     background: rgba(255, 255, 255, 0.08); 
     backdrop-filter: blur(10px); 
-    border: 1px solid rgba(137, 247, 254, 0.3); /* Clean, solid, semi-transparent border */
+    border: 1px solid rgba(137, 247, 254, 0.3);
     border-radius: 20px; 
     padding: 20px;
     color: #f1f1f1; 
-    font-family: 'Nunito', sans-serif; /* Removed Comic Sans for a professional aesthetic */
+    font-family: 'Nunito', sans-serif; 
     white-space: pre-wrap; 
     line-height: 1.6;
-    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); /* Subtle base shadow */
-    transition: all 0.3s ease-in-out; /* Smooth, straight transition */
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); 
+    transition: all 0.3s ease-in-out; 
 }
 .playful-card:hover {
-    transform: translateY(-6px); /* Pops straight up, no tilt! */
-    box-shadow: 0px 12px 30px rgba(137, 247, 254, 0.2); /* Beautiful glowing shadow underneath */
+    transform: translateY(-6px); 
+    box-shadow: 0px 12px 30px rgba(137, 247, 254, 0.2); 
     border-color: rgba(137, 247, 254, 0.8);
     background: rgba(255, 255, 255, 0.12);
+}
+
+/* Updated Button Aesthetic */
+div[data-testid="stButton"] > button {
+    background: rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(137, 247, 254, 0.3) !important;
+    color: #f1f1f1 !important;
+    font-family: 'Nunito', sans-serif !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease-in-out !important;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+div[data-testid="stButton"] > button:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0px 8px 20px rgba(137, 247, 254, 0.25) !important;
+    border-color: rgba(137, 247, 254, 0.8) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
 }
 
 /* Custom Fixed Footer for Copyright */
