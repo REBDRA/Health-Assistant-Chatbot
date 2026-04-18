@@ -184,8 +184,7 @@ RULES FOR CONTENT GENERATION:
    - Give EXACTLY 3 doctors. Ratings must be 'X.X/5'.
 """
 
-client = Groq(api_key=api_key)
-health_ai = HealthAIFacade(client=client, system_prompt=SYSTEM_PROMPT)
+health_ai = HealthAIFacade(api_key=api_key)
 
 # ==========================================
 # 📐 NEW LAYOUT: 3 Columns
