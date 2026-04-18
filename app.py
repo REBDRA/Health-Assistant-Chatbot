@@ -1,4 +1,4 @@
-# type:ignore
+# type: ignore
 import json
 import os
 import random
@@ -6,8 +6,10 @@ import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
 
+# Import the new facade from your ai_service module
+from ai_service import HealthAIFacade
+
 # 1. Page config MUST be the very first Streamlit command
-# CHANGED: Added layout="wide" to use the full screen width
 st.set_page_config(page_title="Health Assistant AI", page_icon="🩺", layout="wide")
 
 # Load env
@@ -110,8 +112,6 @@ if not api_key:
     )
     st.stop()  # Prevents the app from crashing later when initializing the client
 
-client = Groq(api_key=api_key)
-
 SYSTEM_PROMPT = """
 You are a highly intelligent and strict Medical Triage & Health AI.
 
@@ -142,6 +142,11 @@ RULES FOR CONTENT GENERATION:
    - DO NOT repeat the same doctor names for different queries. Generate distinct, varied, and realistic doctor names for West Bengal, India.
    - Give EXACTLY 3 doctors. Ratings must be 'X.X/5'.
 """
+
+# Initialize Groq Client and the new HealthAIFacade
+client = Groq(api_key=api_key)
+health_ai = HealthAIFacade(client=client, system_prompt=SYSTEM_PROMPT)
+
 
 # ==========================================
 # 📐 NEW LAYOUT: 3 Columns
@@ -181,23 +186,19 @@ with right_col:
 
     # Interactive Water Tracker
     if "water_litres" not in st.session_state:
-        # Load from file so it survives page reloads
         st.session_state.water_litres = load_water_progress()
 
     with st.container(border=True):
         st.markdown("#### 💧 Water Tracker")
 
-        # Calculate progress (capped at 1.0 to avoid Streamlit errors)
         progress_val = min(st.session_state.water_litres / 2.0, 1.0)
         st.progress(
             progress_val, text=f"{st.session_state.water_litres:.2f} / 2.0 Litres"
         )
 
-        # Changed to 3 columns to accommodate the minus button
         col1, col2, col3 = st.columns(3)
         if col1.button("➕ Drink", help="Add 0.25L", use_container_width=True):
             if st.session_state.water_litres < 2.0:
-                # Add 0.25L, round it, save to file, and update UI
                 st.session_state.water_litres = round(
                     st.session_state.water_litres + 0.25, 2
                 )
@@ -205,14 +206,12 @@ with right_col:
                 st.rerun()
         if col2.button("➖ Undo", help="Remove 0.25L", use_container_width=True):
             if st.session_state.water_litres >= 0.25:
-                # Remove 0.25L, round it, save to file, and update UI
                 st.session_state.water_litres = round(
                     st.session_state.water_litres - 0.25, 2
                 )
                 save_water_progress(st.session_state.water_litres)
                 st.rerun()
         if col3.button("🔄 Reset", use_container_width=True):
-            # Reset to 0, save to file, and update UI
             st.session_state.water_litres = 0.0
             save_water_progress(0.0)
             st.rerun()
@@ -227,7 +226,6 @@ with right_col:
             "Include a source of protein in every meal.",
         ]
         st.info(random.choice(tips))
-
 
 # ------------------------------------------
 # 🤖 MAIN COLUMN: The Chatbot Interface
@@ -247,7 +245,7 @@ with main_col:
         "👋 Hi! Tell me what's bothering you, or ask me a health question — I’ll help you out 💙"
     )
 
-    # Chat history initialization (Added 'is_card' state)
+    # Chat history initialization
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {
@@ -257,11 +255,9 @@ with main_col:
             }
         ]
 
-    # Display chat history (Fixes the disappearing CSS bug on reload)
+    # Display chat history
     for msg in st.session_state.messages:
-        # Set the custom avatar based on the role
         avatar = AI_AVATAR_URL if msg["role"] == "assistant" else "👤"
-
         with st.chat_message(msg["role"], avatar=avatar):
             if msg.get("is_card"):
                 st.markdown(
@@ -273,7 +269,11 @@ with main_col:
 
     # Input processing
     if prompt := st.chat_input("Describe your symptoms or ask a health question..."):
-        # Append user prompt to history
+        # We save the current history to pass to the facade (excluding the prompt we are about to add)
+        # We do this because your facade explicitly appends the new `user_prompt` inside `get_structured_response`.
+        current_history = list(st.session_state.messages)
+
+        # Append user prompt to state
         st.session_state.messages.append(
             {"role": "user", "content": prompt, "is_card": False}
         )
@@ -284,21 +284,10 @@ with main_col:
         with st.chat_message("assistant", avatar=AI_AVATAR_URL):
             with st.spinner("Analyzing..."):
                 try:
-                    # 🚀 Native JSON Mode for absolute stability
-                    response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": prompt},
-                        ],
-                        temperature=0.0,
-                        response_format={
-                            "type": "json_object"
-                        },  # Forces LLM to output clean JSON
+                    # 🚀 Call the Facade instead of raw API
+                    data = health_ai.get_structured_response(
+                        user_prompt=prompt, chat_history=current_history
                     )
-
-                    # Parse JSON directly (no string replacements needed)
-                    data = json.loads(response.choices[0].message.content)
 
                     if not data.get("is_valid_query", True):
                         output = data.get(
@@ -324,7 +313,6 @@ with main_col:
                         else:
                             remedies = data.get("remedies", [])
                             if remedies:
-                                # Compact string building
                                 remedies_text = "\n".join(
                                     [f"{i}. {r}" for i, r in enumerate(remedies, 1)]
                                 )
@@ -346,7 +334,7 @@ with main_col:
                                         f"⭐ {stars}\n\n---\n\n"
                                     )
 
-                        output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
+                            output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
 
                     # Render to screen
                     if is_card:
@@ -363,7 +351,6 @@ with main_col:
                     )
 
                 except Exception as e:
-                    # Logging the actual error makes debugging much easier
                     st.error(f"System Error: {e}")
                     st.session_state.messages.append(
                         {
