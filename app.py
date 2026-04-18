@@ -19,7 +19,7 @@ def get_stars(rating: str) -> str:
         full = int(num)
         half = 1 if num - full >= 0.5 else 0
         return "⭐" * full + (" ✨" if half else "")
-    except ValueError, AttributeError, IndexError:
+    except (ValueError, AttributeError, IndexError):
         return "⭐⭐⭐⭐"
 
 
