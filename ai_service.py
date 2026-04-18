@@ -40,8 +40,9 @@ class HealthResponse(BaseModel):
 
 # --- 2. THE AGENT CONFIGURATION ---
 
+# FIXED: Explicitly use the 'model' keyword to avoid the UserError
 health_agent = Agent(
-    "groq:llama-3.3-70b-versatile",
+    model="groq:llama-3.3-70b-versatile",
     result_type=HealthResponse,
     system_prompt=(
         "You are a strict Medical Triage AI for West Bengal, India. "
@@ -61,7 +62,6 @@ def search_verified_doctors(ctx: RunContext[None], symptom: str) -> List[dict]:
     Calls a local database to find real doctors in West Bengal based on symptoms.
     This provides 'Grounding' to prevent the LLM from hallucinating names.
     """
-    # Logic to map symptoms to specialties
     s = symptom.lower()
     if any(word in s for word in ["skin", "rash", "itch", "acne"]):
         specialty = "Dermatologist"
@@ -72,7 +72,6 @@ def search_verified_doctors(ctx: RunContext[None], symptom: str) -> List[dict]:
     else:
         specialty = "General Physician"
 
-    # Mock database (In production, this would be a SQL/API call)
     db = {
         "Dermatologist": [
             {
@@ -118,7 +117,7 @@ def search_verified_doctors(ctx: RunContext[None], symptom: str) -> List[dict]:
     return db.get(specialty, db["General Physician"])
 
 
-# --- 4. THE FACADE (The Bridge to Streamlit) ---
+# --- 4. THE FACADE ---
 
 
 class HealthAIFacade:
@@ -126,10 +125,8 @@ class HealthAIFacade:
         os.environ["GROQ_API_KEY"] = api_key
 
     def get_structured_response(self, user_prompt: str, chat_history: list) -> dict:
-        # Manage Context Window (Building Block: Context)
         history_text = ""
         if chat_history:
-            # Only send the last 3 non-card messages to keep the window clean
             recent = [m for m in chat_history if not m.get("is_card")][-3:]
             for m in recent:
                 role = "User" if m["role"] == "user" else "Assistant"
@@ -138,7 +135,6 @@ class HealthAIFacade:
         full_input = f"History:\n{history_text}\nUser: {user_prompt}"
 
         # The Agentic Loop: Reason -> Tool Use -> Observe -> Output
-
         result = health_agent.run_sync(full_input)
 
         return result.data.model_dump()
