@@ -5,28 +5,22 @@ import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
 
-# Import the new facade from your ai_service module
 from ai_service import HealthAIFacade
 
 # 1. Page config MUST be the very first Streamlit command
 st.set_page_config(page_title="Health Assistant AI", page_icon="🩺", layout="wide")
 
-# Load env
 load_dotenv()
 
 
-# ⭐ Rating stars - Optimized exception handling
+# ⭐ Rating stars
 def get_stars(rating: str) -> str:
     try:
         num = float(rating.split("/")[0])
         full = int(num)
         half = 1 if num - full >= 0.5 else 0
         return "⭐" * full + (" ✨" if half else "")
-    except (
-        ValueError,
-        AttributeError,
-        IndexError,
-    ):  # FIXED: Tuple syntax for modern Python
+    except ValueError, AttributeError, IndexError:
         return "⭐⭐⭐⭐"
 
 
@@ -57,7 +51,7 @@ st.markdown(
     """
 <style>
 .stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
-[data-testid="block-container"] { padding-bottom: 30px; } /* FIX: Removed the massive 150px gap */
+[data-testid="block-container"] { padding-bottom: 30px; } 
 
 /* Aesthetic Card CSS */
 .playful-card {
@@ -72,6 +66,7 @@ st.markdown(
     line-height: 1.6;
     box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); 
     transition: all 0.3s ease-in-out; 
+    margin-bottom: 15px;
 }
 .playful-card:hover {
     transform: translateY(-6px); 
@@ -91,7 +86,6 @@ div[data-testid="stButton"] button {
     transition: all 0.3s ease-in-out !important;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1) !important;
 }
-
 div[data-testid="stButton"] button:hover {
     transform: translateY(-4px) !important; 
     box-shadow: 0px 8px 20px rgba(137, 247, 254, 0.25) !important;
@@ -100,14 +94,27 @@ div[data-testid="stButton"] button:hover {
     color: #ffffff !important;
 }
 
+/* 💎 GEMINI-STYLE FLOATING CHAT INPUT 💎 */
+div[data-testid="stChatInput"] {
+    position: sticky !important;
+    bottom: 30px !important;
+    z-index: 9999 !important;
+    background: rgba(15, 32, 39, 0.75) !important;
+    backdrop-filter: blur(15px) !important;
+    border-radius: 15px !important;
+    border: 1px solid rgba(137, 247, 254, 0.4) !important;
+    box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important;
+    padding: 5px !important;
+}
+
 /* Custom Fixed Footer for Copyright */
 .custom-footer {
     position: fixed;
-    bottom: 12px;
+    bottom: 5px;
     left: 50%;
     transform: translateX(-50%);
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 12px;
     font-family: 'Nunito', sans-serif;
     z-index: 999999;
     pointer-events: none;
@@ -122,14 +129,14 @@ div[data-testid="stButton"] button:hover {
     unsafe_allow_html=True,
 )
 
-# 🔒 Secure API Key Loading (Compact & Safe)
+# 🔒 Secure API Key Loading
 api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
 
 if not api_key:
     st.error(
         "GROQ_API_KEY is missing! Please set it in secrets.toml or as an environment variable."
     )
-    st.stop()  # Prevents the app from crashing later when initializing the client
+    st.stop()
 
 SYSTEM_PROMPT = """
 You are a highly intelligent and strict Medical Triage & Health AI.
@@ -162,10 +169,8 @@ RULES FOR CONTENT GENERATION:
    - Give EXACTLY 3 doctors. Ratings must be 'X.X/5'.
 """
 
-# Initialize Groq Client and the new HealthAIFacade
 client = Groq(api_key=api_key)
 health_ai = HealthAIFacade(client=client, system_prompt=SYSTEM_PROMPT)
-
 
 # ==========================================
 # 📐 NEW LAYOUT: 3 Columns
@@ -178,7 +183,6 @@ left_col, main_col, right_col = st.columns([1, 2.2, 1], gap="large")
 with left_col:
     st.markdown("### ⚡ Quick Tools")
 
-    # BMI Calculator Widget
     with st.container(border=True):
         st.markdown("#### ⚖️ BMI Calculator")
         weight = st.number_input("Weight (kg)", min_value=10.0, value=70.0, step=0.5)
@@ -194,26 +198,20 @@ with left_col:
                 status, color = "Overweight", "🟠"
             else:
                 status, color = "Obese", "🔴"
-
             st.success(f"**BMI: {bmi:.1f}**\n\n{color} {status}")
-    # ------------------------------------------
-    # 💬 Chat Controls (Edit / Undo)
-    # ------------------------------------------
+
+    # 💬 Chat Controls
     with st.container(border=True):
         st.markdown("#### 💬 Chat Controls")
         col_undo, col_clear = st.columns(2)
 
-        # Undo button to act as an "Edit" function
         if col_undo.button(
             "⏪ Undo Last", help="Remove your last message", use_container_width=True
         ):
-            # Make sure we don't delete the default welcome message
             if "messages" in st.session_state and len(st.session_state.messages) > 1:
-                # Remove the last two messages (The Bot's reply, and the User's prompt)
                 st.session_state.messages = st.session_state.messages[:-2]
                 st.rerun()
 
-        # Clear chat button
         if col_clear.button(
             "🗑️ Clear All", help="Start a fresh chat", use_container_width=True
         ):
@@ -232,7 +230,6 @@ with left_col:
 with right_col:
     st.markdown("### 💡 Wellness Hub")
 
-    # Interactive Water Tracker
     if "water_litres" not in st.session_state:
         st.session_state.water_litres = load_water_progress()
 
@@ -264,7 +261,6 @@ with right_col:
             save_water_progress(0.0)
             st.rerun()
 
-    # Daily Tip
     with st.container(border=True):
         st.markdown("#### 🍎 Daily Tip")
         tips = [
@@ -279,12 +275,10 @@ with right_col:
 # 🤖 MAIN COLUMN: The Chatbot Interface
 # ------------------------------------------
 with main_col:
-    # 🖼️ Cool Robot Avatar
     AI_AVATAR = "🤖"
 
     col_img, col_title = st.columns([1, 4])
     with col_img:
-        # Render the emoji as large text instead of using st.image()
         st.markdown(
             f"<div style='font-size: 60px; text-align: center; margin-top: 10px;'>{AI_AVATAR}</div>",
             unsafe_allow_html=True,
@@ -292,12 +286,11 @@ with main_col:
     with col_title:
         st.title("Health Assistant")
 
-    # 💙 Welcome
     st.info(
         "👋 Hi! Tell me what's bothering you, or ask me a health question — I’ll help you out 💙"
     )
 
-    # Chat history initialization
+    # Initialize messages
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {
@@ -307,121 +300,99 @@ with main_col:
             }
         ]
 
-    # ✅ THE FIX: Create a fixed-height scrollable container for the chat!
-    # This locks the window size so the input box at the bottom never moves.
-    chat_container = st.container(height=500, border=False)
+    # Display chat history naturally (No scrolling container)
+    for msg in st.session_state.messages:
+        avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
 
-    # Display chat history INSIDE the scrollable container
-    with chat_container:
-        for msg in st.session_state.messages:
-            avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
+        with st.chat_message(msg["role"], avatar=avatar):
+            if msg.get("is_card"):
+                st.markdown(
+                    f'<div class="playful-card">{msg["content"]}</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(msg["content"])
 
-            with st.chat_message(msg["role"], avatar=avatar):
-                if msg.get("is_card"):
-                    st.markdown(
-                        f'<div class="playful-card">{msg["content"]}</div>',
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(msg["content"])
-
-    # Input processing (OUTSIDE the container, so it stays locked at the bottom)
+    # Input processing (Sticky floating CSS handles the bottom pinning)
     if prompt := st.chat_input("Describe your symptoms or ask a health question..."):
         current_history = list(st.session_state.messages)
 
-        # Append user prompt to state
         st.session_state.messages.append(
             {"role": "user", "content": prompt, "is_card": False}
         )
 
-        # Render the new user prompt INSIDE the scrollable container
-        with chat_container:
-            with st.chat_message("user", avatar="👤"):
-                st.markdown(prompt)
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
 
-        # Render the bot response INSIDE the scrollable container
-        with chat_container:
-            with st.chat_message("assistant", avatar=AI_AVATAR):
-                with st.spinner("Analyzing..."):
-                    try:
-                        # Call the Facade instead of raw API
-                        data = health_ai.get_structured_response(
-                            user_prompt=prompt, chat_history=current_history
+        with st.chat_message("assistant", avatar=AI_AVATAR):
+            with st.spinner("Analyzing..."):
+                try:
+                    data = health_ai.get_structured_response(
+                        user_prompt=prompt, chat_history=current_history
+                    )
+
+                    if not data.get("is_valid_query", True):
+                        output = data.get(
+                            "error_message",
+                            "I didn't quite understand that. Could you clarify?",
                         )
+                        is_card = False
+                    else:
+                        is_card = True
+                        output = ""
 
-                        if not data.get("is_valid_query", True):
-                            output = data.get(
-                                "error_message",
-                                "I didn't quite understand that. Could you clarify?",
-                            )
-                            is_card = False
+                        if data.get("query_type") == "general_health":
+                            direct_answer = data.get("direct_answer", "")
+                            advice = data.get("advice", "")
+                            if direct_answer:
+                                output += f"🩺 **Health Answer:**\n{direct_answer}\n"
+                            if advice:
+                                output += f"\n💡 **Additional Advice:**\n{advice}\n"
+
                         else:
-                            is_card = True
-                            output = ""
+                            remedies = data.get("remedies", [])
+                            if remedies:
+                                remedies_text = "\n".join(
+                                    [f"{i}. {r}" for i, r in enumerate(remedies, 1)]
+                                )
+                                output += f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
 
-                            # --- BRANCH 1: General Health Questions ---
-                            if data.get("query_type") == "general_health":
-                                direct_answer = data.get("direct_answer", "")
-                                advice = data.get("advice", "")
+                            advice = data.get("advice", "")
+                            if advice:
+                                output += f"\n💡 **General Health Advice:**\n{advice}\n"
 
-                                if direct_answer:
+                            doctors = data.get("doctors", [])
+                            if doctors:
+                                output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
+                                for doc in doctors:
+                                    stars = get_stars(doc.get("rating", ""))
                                     output += (
-                                        f"🩺 **Health Answer:**\n{direct_answer}\n"
-                                    )
-                                if advice:
-                                    output += f"\n💡 **Additional Advice:**\n{advice}\n"
-
-                            # --- BRANCH 2: Symptom Triage & Remedies ---
-                            else:
-                                remedies = data.get("remedies", [])
-                                if remedies:
-                                    remedies_text = "\n".join(
-                                        [f"{i}. {r}" for i, r in enumerate(remedies, 1)]
-                                    )
-                                    output += f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
-
-                                advice = data.get("advice", "")
-                                if advice:
-                                    output += (
-                                        f"\n💡 **General Health Advice:**\n{advice}\n"
+                                        f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
+                                        f"📍 {doc.get('location', 'Unknown')}\n"
+                                        f"📞 {doc.get('phone', 'N/A')}\n"
+                                        f"⭐ {stars}\n\n---\n\n"
                                     )
 
-                                doctors = data.get("doctors", [])
-                                if doctors:
-                                    output += (
-                                        "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
-                                    )
-                                    for doc in doctors:
-                                        stars = get_stars(doc.get("rating", ""))
-                                        output += (
-                                            f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
-                                            f"📍 {doc.get('location', 'Unknown')}\n"
-                                            f"📞 {doc.get('phone', 'N/A')}\n"
-                                            f"⭐ {stars}\n\n---\n\n"
-                                        )
+                            output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
 
-                                output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
-
-                        # Render to screen
-                        if is_card:
-                            st.markdown(
-                                f'<div class="playful-card">{output}</div>',
-                                unsafe_allow_html=True,
-                            )
-                        else:
-                            st.markdown(output)
-
-                        # Save to session state so it survives reloads
-                        st.session_state.messages.append(
-                            {"role": "assistant", "content": output, "is_card": is_card}
+                    if is_card:
+                        st.markdown(
+                            f'<div class="playful-card">{output}</div>',
+                            unsafe_allow_html=True,
                         )
+                    else:
+                        st.markdown(output)
 
-                    except Exception as e:
-                        st.error(f"System Error: {e}")
-                        st.session_state.messages.append(
-                            {
-                                "role": "assistant",
-                                "content": "Something went wrong. Try again.",
-                                "is_card": False,
-                            }
-                        )
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": output, "is_card": is_card}
+                    )
+
+                except Exception as e:
+                    st.error(f"System Error: {e}")
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": "Something went wrong. Try again.",
+                            "is_card": False,
+                        }
+                    )
