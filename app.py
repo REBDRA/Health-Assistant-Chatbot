@@ -139,7 +139,7 @@ st.markdown(
     border-radius: 22px !important;
     background:
         linear-gradient(145deg, rgba(15, 32, 39, 0.96), rgba(32, 74, 86, 0.88)) padding-box,
-        linear-gradient(120deg, #89f7fe, #ffffff, #1eb0bf, #5dfff7, #89f7fe) border-box !important;
+        linear-gradient(120deg, #89f7fe, #1eb0bf, #5dfff7, #1eb0bf, #89f7fe) border-box !important;
     background-size: 100% 100%, 320% 320% !important;
     box-shadow:
         0 18px 30px rgba(0, 0, 0, 0.42),
@@ -159,10 +159,10 @@ st.markdown(
     inset: -7px;
     z-index: -1;
     border-radius: 28px;
-    background: linear-gradient(120deg, #89f7fe, #ffffff, #1eb0bf, #5dfff7, #89f7fe);
+    background: linear-gradient(120deg, #89f7fe, #1eb0bf, #5dfff7, #1eb0bf, #89f7fe);
     background-size: 320% 320%;
     filter: blur(14px);
-    opacity: 0.46;
+    opacity: 0.34;
     animation: toolCardBorderFlow 2.7s linear infinite;
 }
 .stApp .st-key-bmi_card:hover,
@@ -173,13 +173,13 @@ st.markdown(
     box-shadow:
         0 28px 42px rgba(0, 0, 0, 0.46),
         0 12px 0 rgba(5, 17, 24, 0.9),
-        0 0 38px rgba(137, 247, 254, 0.48) !important;
+        0 0 30px rgba(137, 247, 254, 0.34) !important;
 }
 .stApp .st-key-bmi_card:hover::before,
 .stApp .st-key-chat_controls_card:hover::before,
 .stApp .st-key-water_tracker_card:hover::before,
 .stApp .st-key-daily_tip_card:hover::before {
-    opacity: 0.82;
+    opacity: 0.5;
 }
 .quick-tools-title {
     margin: 0 0 18px 0;
