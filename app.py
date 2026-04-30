@@ -103,20 +103,32 @@ st.markdown(
 
 /* 💎 BRUTE-FORCE DARK BORDERS FOR SIDEBAR WIDGETS 💎 */
 .stApp [data-testid="stVerticalBlockBorderWrapper"] {
+    position: relative !important;
     background-color: rgba(15, 32, 39, 0.75) !important; /* Dark chat-box background */
-    background-image: none !important;
+    background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(15, 32, 39, 0.72)) !important;
     backdrop-filter: blur(15px) !important;
-    border: 1px solid rgba(137, 247, 254, 0.4) !important; /* Glowing blue border */
+    border: 1px solid rgba(137, 247, 254, 0.58) !important; /* Glowing blue border */
     border-radius: 15px !important; 
-    box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important; /* Deep shadow */
+    box-shadow:
+        0 14px 24px rgba(0, 0, 0, 0.34) !important,
+        0 6px 0 rgba(8, 20, 27, 0.82) !important,
+        inset 0 1px 0 rgba(255, 255, 255, 0.22) !important,
+        inset 0 -10px 18px rgba(0, 0, 0, 0.18) !important,
+        0 0 18px rgba(137, 247, 254, 0.12) !important;
+    transform: translateY(0) !important;
     transition: all 0.3s ease-in-out !important;
 }
 .stApp [data-testid="stVerticalBlockBorderWrapper"]:hover {
-    border-color: rgba(137, 247, 254, 0.9) !important;
-    box-shadow: 0px 12px 45px rgba(137, 247, 254, 0.2) !important;
+    border-color: rgba(137, 247, 254, 0.95) !important;
+    transform: translateY(-6px) !important;
+    box-shadow:
+        0 22px 34px rgba(0, 0, 0, 0.42) !important,
+        0 10px 0 rgba(8, 20, 27, 0.88) !important,
+        inset 0 1px 0 rgba(255, 255, 255, 0.32) !important,
+        inset 0 -10px 18px rgba(0, 0, 0, 0.12) !important,
+        0 0 30px rgba(137, 247, 254, 0.28) !important;
 }
 
-/* 3D frame for the whole Quick Tools section */
 .quick-tools-title {
     margin: 0 0 18px 0;
     color: #f7fdff;
@@ -124,42 +136,6 @@ st.markdown(
     font-size: 1.35rem;
     font-weight: 800;
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
-}
-
-[data-testid="column"]:first-of-type {
-    position: relative !important;
-    height: fit-content;
-    padding: 18px 16px 20px 16px !important;
-    border-radius: 22px;
-    border: 1px solid rgba(137, 247, 254, 0.72);
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(15, 32, 39, 0.68)),
-        rgba(15, 32, 39, 0.62);
-    box-shadow:
-        0 22px 34px rgba(0, 0, 0, 0.4),
-        0 10px 0 rgba(8, 20, 27, 0.92),
-        inset 0 1px 0 rgba(255, 255, 255, 0.28),
-        inset 0 -14px 24px rgba(0, 0, 0, 0.2),
-        0 0 28px rgba(137, 247, 254, 0.18);
-    transition: all 0.3s ease-in-out;
-}
-[data-testid="column"]:first-of-type::before {
-    content: "";
-    position: absolute;
-    inset: -5px;
-    z-index: -1;
-    border-radius: 26px;
-    background: linear-gradient(145deg, rgba(137, 247, 254, 0.85), rgba(255, 255, 255, 0.12), rgba(30, 176, 191, 0.5));
-    filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.34));
-}
-[data-testid="column"]:first-of-type:hover {
-    transform: translateY(-5px) !important;
-    box-shadow:
-        0 28px 42px rgba(0, 0, 0, 0.45),
-        0 12px 0 rgba(8, 20, 27, 0.9),
-        inset 0 1px 0 rgba(255, 255, 255, 0.36),
-        inset 0 -14px 24px rgba(0, 0, 0, 0.16),
-        0 0 36px rgba(137, 247, 254, 0.32);
 }
 
 /* Updated Button Aesthetic */
