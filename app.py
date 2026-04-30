@@ -105,10 +105,18 @@ st.markdown(
 .stApp [data-testid="stVerticalBlockBorderWrapper"] {
     position: relative !important;
     isolation: isolate !important;
-    background-color: rgba(15, 32, 39, 0.75) !important; /* Dark chat-box background */
-    background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(15, 32, 39, 0.72)) !important;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(15, 32, 39, 0.78)) padding-box,
+        conic-gradient(
+            from var(--quick-tools-border-angle, 0deg),
+            rgba(137, 247, 254, 0.12),
+            rgba(137, 247, 254, 1),
+            rgba(255, 255, 255, 0.5),
+            rgba(30, 176, 191, 0.88),
+            rgba(137, 247, 254, 0.12)
+        ) border-box !important;
     backdrop-filter: blur(15px) !important;
-    border: 1px solid rgba(137, 247, 254, 0.58) !important; /* Glowing blue border */
+    border: 2px solid transparent !important;
     border-radius: 15px !important; 
     box-shadow:
         0 14px 24px rgba(0, 0, 0, 0.34) !important,
@@ -117,37 +125,37 @@ st.markdown(
         inset 0 -10px 18px rgba(0, 0, 0, 0.18) !important,
         0 0 18px rgba(137, 247, 254, 0.12) !important;
     transform: translateY(0) !important;
+    animation: quickToolsBorderSpin 4s linear infinite !important;
     transition: all 0.3s ease-in-out !important;
 }
 .stApp [data-testid="stVerticalBlockBorderWrapper"]::before {
     content: "";
     position: absolute;
-    inset: -3px;
+    inset: -7px;
     z-index: -1;
-    border-radius: 18px;
+    border-radius: 22px;
     background: conic-gradient(
         from var(--quick-tools-border-angle, 0deg),
-        rgba(137, 247, 254, 0.12),
-        rgba(137, 247, 254, 0.95),
-        rgba(255, 255, 255, 0.28),
-        rgba(30, 176, 191, 0.7),
-        rgba(137, 247, 254, 0.12)
+        transparent,
+        rgba(137, 247, 254, 0.5),
+        rgba(255, 255, 255, 0.22),
+        rgba(30, 176, 191, 0.42),
+        transparent
     );
-    opacity: 0.65;
-    filter: blur(0.2px) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
-    animation: quickToolsBorderSpin 4s linear infinite;
+    opacity: 0.55;
+    filter: blur(10px);
 }
 .stApp [data-testid="stVerticalBlockBorderWrapper"]::after {
     content: "";
     position: absolute;
-    inset: 1px;
+    inset: 2px;
     z-index: -1;
-    border-radius: 14px;
+    border-radius: 12px;
     background: rgba(15, 32, 39, 0.72);
 }
 .stApp [data-testid="stVerticalBlockBorderWrapper"]:hover {
-    border-color: rgba(137, 247, 254, 0.95) !important;
     transform: translateY(-6px) !important;
+    animation-duration: 1.8s !important;
     box-shadow:
         0 22px 34px rgba(0, 0, 0, 0.42) !important,
         0 10px 0 rgba(8, 20, 27, 0.88) !important,
@@ -157,7 +165,6 @@ st.markdown(
 }
 .stApp [data-testid="stVerticalBlockBorderWrapper"]:hover::before {
     opacity: 1;
-    animation-duration: 1.8s;
 }
 
 @property --quick-tools-border-angle {
