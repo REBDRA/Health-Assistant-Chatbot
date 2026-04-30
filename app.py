@@ -104,6 +104,7 @@ st.markdown(
 /* 💎 BRUTE-FORCE DARK BORDERS FOR SIDEBAR WIDGETS 💎 */
 .stApp [data-testid="stVerticalBlockBorderWrapper"] {
     position: relative !important;
+    isolation: isolate !important;
     background-color: rgba(15, 32, 39, 0.75) !important; /* Dark chat-box background */
     background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(15, 32, 39, 0.72)) !important;
     backdrop-filter: blur(15px) !important;
@@ -118,6 +119,32 @@ st.markdown(
     transform: translateY(0) !important;
     transition: all 0.3s ease-in-out !important;
 }
+.stApp [data-testid="stVerticalBlockBorderWrapper"]::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    z-index: -1;
+    border-radius: 18px;
+    background: conic-gradient(
+        from var(--quick-tools-border-angle, 0deg),
+        rgba(137, 247, 254, 0.12),
+        rgba(137, 247, 254, 0.95),
+        rgba(255, 255, 255, 0.28),
+        rgba(30, 176, 191, 0.7),
+        rgba(137, 247, 254, 0.12)
+    );
+    opacity: 0.65;
+    filter: blur(0.2px) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
+    animation: quickToolsBorderSpin 4s linear infinite;
+}
+.stApp [data-testid="stVerticalBlockBorderWrapper"]::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    border-radius: 14px;
+    background: rgba(15, 32, 39, 0.72);
+}
 .stApp [data-testid="stVerticalBlockBorderWrapper"]:hover {
     border-color: rgba(137, 247, 254, 0.95) !important;
     transform: translateY(-6px) !important;
@@ -127,6 +154,21 @@ st.markdown(
         inset 0 1px 0 rgba(255, 255, 255, 0.32) !important,
         inset 0 -10px 18px rgba(0, 0, 0, 0.12) !important,
         0 0 30px rgba(137, 247, 254, 0.28) !important;
+}
+.stApp [data-testid="stVerticalBlockBorderWrapper"]:hover::before {
+    opacity: 1;
+    animation-duration: 1.8s;
+}
+
+@property --quick-tools-border-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+@keyframes quickToolsBorderSpin {
+    to {
+        --quick-tools-border-angle: 360deg;
+    }
 }
 
 .quick-tools-title {
