@@ -26,21 +26,13 @@ class HealthResponse(BaseModel):
     is_valid_query: bool
     query_type: str
     direct_answer: str = ""
-    remedies: List[str] = []
+    remedies: List[str] = Field(default_factory=list)
     advice: str = ""
-    doctors: List[Doctor] = []
+    doctors: List[Doctor] = Field(default_factory=list)
     error_message: str = ""
 
 
-# --- 2. THE AGENT (structured output only, no tools to avoid skipping) ---
-health_agent = Agent(
-    model="groq:llama-3.3-70b-versatile",
-    output_type=HealthResponse,
-)
-
-
-@health_agent.system_prompt
-def add_health_instructions() -> str:
+def get_health_instructions() -> str:
     return (
         "You are a strict Medical Triage & Health AI for West Bengal, India.\n\n"
         "CRITICAL RULES FOR QUERY TYPE:\n"
@@ -61,6 +53,14 @@ def add_health_instructions() -> str:
         "RULES FOR CONTENT:\n"
         "- remedies: Provide specific cures, solutions, or home remedies.\n"
         "- advice: Provide broader health advice, lifestyle tips, or preventative measures."
+    )
+
+
+def create_health_agent() -> Agent:
+    return Agent(
+        model="groq:llama-3.3-70b-versatile",
+        output_type=HealthResponse,
+        system_prompt=get_health_instructions(),
     )
 
 
@@ -91,6 +91,7 @@ def fetch_live_doctors(symptom: str) -> str:
 class HealthAIFacade:
     def __init__(self, api_key: str):
         os.environ["GROQ_API_KEY"] = api_key
+        self.health_agent = create_health_agent()
 
     def get_structured_response(self, user_prompt: str, chat_history: list) -> dict:
         history_text = ""
@@ -130,5 +131,5 @@ class HealthAIFacade:
         )
 
         # Step 3: Run the main structured-output agent with the pre-fetched context
-        result = health_agent.run_sync(full_input)
+        result = self.health_agent.run_sync(full_input)
         return result.output.model_dump()

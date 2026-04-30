@@ -104,80 +104,83 @@ st.markdown(
 /* 💎 BRUTE-FORCE DARK BORDERS FOR SIDEBAR WIDGETS 💎 */
 .stApp [data-testid="stVerticalBlockBorderWrapper"] {
     position: relative !important;
-    isolation: isolate !important;
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(15, 32, 39, 0.78)) padding-box,
-        conic-gradient(
-            from var(--quick-tools-border-angle, 0deg),
-            rgba(137, 247, 254, 0.12),
-            rgba(137, 247, 254, 1),
-            rgba(255, 255, 255, 0.5),
-            rgba(30, 176, 191, 0.88),
-            rgba(137, 247, 254, 0.12)
-        ) border-box !important;
+    background-color: rgba(15, 32, 39, 0.75) !important;
+    background-image: none !important;
     backdrop-filter: blur(15px) !important;
-    border: 2px solid transparent !important;
-    border-radius: 15px !important; 
-    box-shadow:
-        0 14px 24px rgba(0, 0, 0, 0.34) !important,
-        0 6px 0 rgba(8, 20, 27, 0.82) !important,
-        inset 0 1px 0 rgba(255, 255, 255, 0.22) !important,
-        inset 0 -10px 18px rgba(0, 0, 0, 0.18) !important,
-        0 0 18px rgba(137, 247, 254, 0.12) !important;
-    transform: translateY(0) !important;
-    animation: quickToolsBorderSpin 4s linear infinite !important;
+    border: 1px solid rgba(137, 247, 254, 0.4) !important;
+    border-radius: 15px !important;
+    box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important;
     transition: all 0.3s ease-in-out !important;
 }
-.stApp [data-testid="stVerticalBlockBorderWrapper"]::before {
+.stApp [data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: rgba(137, 247, 254, 0.9) !important;
+    box-shadow: 0px 12px 45px rgba(137, 247, 254, 0.2) !important;
+}
+
+@keyframes toolCardBorderFlow {
+    0% {
+        background-position: 0% 50%, 0% 50%;
+    }
+    50% {
+        background-position: 0% 50%, 100% 50%;
+    }
+    to {
+        background-position: 0% 50%, 200% 50%;
+    }
+}
+
+/* Streamlit puts keys on the outer wrapper, so this is the visible card frame. */
+.stApp .st-key-bmi_card,
+.stApp .st-key-chat_controls_card,
+.stApp .st-key-water_tracker_card,
+.stApp .st-key-daily_tip_card {
+    position: relative !important;
+    border: 3px solid transparent !important;
+    border-radius: 22px !important;
+    background:
+        linear-gradient(145deg, rgba(15, 32, 39, 0.96), rgba(32, 74, 86, 0.88)) padding-box,
+        linear-gradient(120deg, #89f7fe, #ffffff, #1eb0bf, #5dfff7, #89f7fe) border-box !important;
+    background-size: 100% 100%, 320% 320% !important;
+    box-shadow:
+        0 18px 30px rgba(0, 0, 0, 0.42),
+        0 8px 0 rgba(5, 17, 24, 0.9),
+        0 0 26px rgba(137, 247, 254, 0.28) !important;
+    transform: translateY(0);
+    animation: toolCardBorderFlow 2.7s linear infinite !important;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out !important;
+    will-change: background-position, transform;
+}
+.stApp .st-key-bmi_card::before,
+.stApp .st-key-chat_controls_card::before,
+.stApp .st-key-water_tracker_card::before,
+.stApp .st-key-daily_tip_card::before {
     content: "";
     position: absolute;
     inset: -7px;
     z-index: -1;
-    border-radius: 22px;
-    background: conic-gradient(
-        from var(--quick-tools-border-angle, 0deg),
-        transparent,
-        rgba(137, 247, 254, 0.5),
-        rgba(255, 255, 255, 0.22),
-        rgba(30, 176, 191, 0.42),
-        transparent
-    );
-    opacity: 0.55;
-    filter: blur(10px);
+    border-radius: 28px;
+    background: linear-gradient(120deg, #89f7fe, #ffffff, #1eb0bf, #5dfff7, #89f7fe);
+    background-size: 320% 320%;
+    filter: blur(14px);
+    opacity: 0.46;
+    animation: toolCardBorderFlow 2.7s linear infinite;
 }
-.stApp [data-testid="stVerticalBlockBorderWrapper"]::after {
-    content: "";
-    position: absolute;
-    inset: 2px;
-    z-index: -1;
-    border-radius: 12px;
-    background: rgba(15, 32, 39, 0.72);
-}
-.stApp [data-testid="stVerticalBlockBorderWrapper"]:hover {
-    transform: translateY(-6px) !important;
-    animation-duration: 1.8s !important;
+.stApp .st-key-bmi_card:hover,
+.stApp .st-key-chat_controls_card:hover,
+.stApp .st-key-water_tracker_card:hover,
+.stApp .st-key-daily_tip_card:hover {
+    transform: translateY(-6px);
     box-shadow:
-        0 22px 34px rgba(0, 0, 0, 0.42) !important,
-        0 10px 0 rgba(8, 20, 27, 0.88) !important,
-        inset 0 1px 0 rgba(255, 255, 255, 0.32) !important,
-        inset 0 -10px 18px rgba(0, 0, 0, 0.12) !important,
-        0 0 30px rgba(137, 247, 254, 0.28) !important;
+        0 28px 42px rgba(0, 0, 0, 0.46),
+        0 12px 0 rgba(5, 17, 24, 0.9),
+        0 0 38px rgba(137, 247, 254, 0.48) !important;
 }
-.stApp [data-testid="stVerticalBlockBorderWrapper"]:hover::before {
-    opacity: 1;
+.stApp .st-key-bmi_card:hover::before,
+.stApp .st-key-chat_controls_card:hover::before,
+.stApp .st-key-water_tracker_card:hover::before,
+.stApp .st-key-daily_tip_card:hover::before {
+    opacity: 0.82;
 }
-
-@property --quick-tools-border-angle {
-    syntax: "<angle>";
-    inherits: false;
-    initial-value: 0deg;
-}
-@keyframes quickToolsBorderSpin {
-    to {
-        --quick-tools-border-angle: 360deg;
-    }
-}
-
 .quick-tools-title {
     margin: 0 0 18px 0;
     color: #f7fdff;
@@ -250,7 +253,12 @@ div[data-testid="stChatInputContainer"] {
 )
 
 # 🔒 Secure API Key Loading
-api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
+try:
+    api_key = st.secrets.get("GROQ_API_KEY")
+except Exception:
+    api_key = None
+
+api_key = api_key or os.environ.get("GROQ_API_KEY")
 
 if not api_key:
     st.error(
@@ -305,7 +313,7 @@ with left_col:
         unsafe_allow_html=True,
     )
 
-    with st.container(border=True):
+    with st.container(border=True, key="bmi_card"):
         st.markdown("#### ⚖️ BMI Calculator")
         weight = st.number_input("Weight (kg)", min_value=10.0, value=70.0, step=0.5)
         height = st.number_input("Height (cm)", min_value=50.0, value=170.0, step=1.0)
@@ -323,7 +331,7 @@ with left_col:
             st.success(f"**BMI: {bmi:.1f}**\n\n{color} {status}")
 
     # 💬 Chat Controls
-    with st.container(border=True):
+    with st.container(border=True, key="chat_controls_card"):
         st.markdown("#### 💬 Chat Controls")
         col_undo, col_clear = st.columns(2)
 
@@ -349,7 +357,7 @@ with right_col:
     if "water_litres" not in st.session_state:
         st.session_state.water_litres = load_water_progress()
 
-    with st.container(border=True):
+    with st.container(border=True, key="water_tracker_card"):
         st.markdown("#### 💧 Water Tracker")
 
         progress_val = min(st.session_state.water_litres / 2.0, 1.0)
@@ -377,7 +385,7 @@ with right_col:
             save_water_progress(0.0)
             st.rerun()
 
-    with st.container(border=True):
+    with st.container(border=True, key="daily_tip_card"):
         st.markdown("#### 🍎 Daily Tip")
         tips = [
             "Take a 5-minute walking break every hour.",
