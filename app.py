@@ -116,56 +116,50 @@ st.markdown(
     box-shadow: 0px 12px 45px rgba(137, 247, 254, 0.2) !important;
 }
 
-/* 3D frame for the Quick Tools cards */
+/* 3D frame for the whole Quick Tools section */
 .quick-tools-title {
-    margin: 0 0 14px 0;
-    padding: 12px 16px;
+    margin: 0 0 18px 0;
     color: #f7fdff;
     font-family: 'Nunito', sans-serif;
     font-size: 1.35rem;
     font-weight: 800;
-    border-radius: 16px;
-    border: 1px solid rgba(137, 247, 254, 0.7);
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(15, 32, 39, 0.55)),
-        rgba(15, 32, 39, 0.82);
-    box-shadow:
-        0 16px 28px rgba(0, 0, 0, 0.36),
-        0 8px 0 rgba(8, 20, 27, 0.9),
-        inset 0 1px 0 rgba(255, 255, 255, 0.34),
-        inset 0 -10px 20px rgba(0, 0, 0, 0.22),
-        0 0 22px rgba(137, 247, 254, 0.24);
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
-[data-testid="column"]:first-of-type [data-testid="stVerticalBlockBorderWrapper"] {
+[data-testid="column"]:first-of-type {
     position: relative !important;
-    border: 1px solid rgba(137, 247, 254, 0.8) !important;
-    transform: translateY(0) !important;
+    height: fit-content;
+    padding: 18px 16px 20px 16px !important;
+    border-radius: 22px;
+    border: 1px solid rgba(137, 247, 254, 0.72);
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(15, 32, 39, 0.68)),
+        rgba(15, 32, 39, 0.62);
     box-shadow:
-        0 18px 32px rgba(0, 0, 0, 0.42) !important,
-        0 9px 0 rgba(8, 20, 27, 0.92) !important,
-        inset 0 1px 0 rgba(255, 255, 255, 0.28) !important,
-        inset 0 -12px 22px rgba(0, 0, 0, 0.2) !important,
-        0 0 24px rgba(137, 247, 254, 0.18) !important;
+        0 22px 34px rgba(0, 0, 0, 0.4),
+        0 10px 0 rgba(8, 20, 27, 0.92),
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        inset 0 -14px 24px rgba(0, 0, 0, 0.2),
+        0 0 28px rgba(137, 247, 254, 0.18);
+    transition: all 0.3s ease-in-out;
 }
-[data-testid="column"]:first-of-type [data-testid="stVerticalBlockBorderWrapper"]::before {
+[data-testid="column"]:first-of-type::before {
     content: "";
     position: absolute;
     inset: -5px;
     z-index: -1;
-    border-radius: 20px;
+    border-radius: 26px;
     background: linear-gradient(145deg, rgba(137, 247, 254, 0.85), rgba(255, 255, 255, 0.12), rgba(30, 176, 191, 0.5));
     filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.34));
 }
-[data-testid="column"]:first-of-type [data-testid="stVerticalBlockBorderWrapper"]:hover {
+[data-testid="column"]:first-of-type:hover {
     transform: translateY(-5px) !important;
     box-shadow:
-        0 24px 38px rgba(0, 0, 0, 0.45) !important,
-        0 12px 0 rgba(8, 20, 27, 0.9) !important,
-        inset 0 1px 0 rgba(255, 255, 255, 0.36) !important,
-        inset 0 -12px 22px rgba(0, 0, 0, 0.16) !important,
-        0 0 34px rgba(137, 247, 254, 0.32) !important;
+        0 28px 42px rgba(0, 0, 0, 0.45),
+        0 12px 0 rgba(8, 20, 27, 0.9),
+        inset 0 1px 0 rgba(255, 255, 255, 0.36),
+        inset 0 -14px 24px rgba(0, 0, 0, 0.16),
+        0 0 36px rgba(137, 247, 254, 0.32);
 }
 
 /* Updated Button Aesthetic */
