@@ -142,6 +142,7 @@ st.markdown(
     border-radius: 22px !important;
     overflow: hidden !important;
     padding-bottom: 12px !important;
+    height: fit-content !important;
     background:
         linear-gradient(145deg, rgba(15, 32, 39, 0.96), rgba(32, 74, 86, 0.88)) padding-box,
         linear-gradient(120deg, #89f7fe, #1eb0bf, #5dfff7, #1eb0bf, #89f7fe) border-box !important;
@@ -332,14 +333,14 @@ def get_daily_tip() -> str:
                     "role": "system",
                     "content": (
                         "You are a friendly health assistant. "
-                        "Give ONE short, practical daily health tip in 1-2 sentences. "
-                        "Be concise, actionable, and positive. "
+                        "Give ONE short, practical daily health tip in 1-2 sentences MAX. "
+                        "Keep it under 30 words. Be concise and actionable. "
                         "Do NOT use any formatting, just plain text."
                     ),
                 },
                 {"role": "user", "content": "Give me today's health tip."},
             ],
-            max_tokens=80,
+            max_tokens=50,
             temperature=0.9,
         )
         tip = response.choices[0].message.content.strip()
@@ -441,21 +442,28 @@ with right_col:
             st.rerun()
 
     with st.container(border=True, key="daily_tip_card"):
-        st.markdown("#### 🍎 Daily Tip")
         tip = get_daily_tip()
         st.markdown(
-            f"""<div style="
-                background: rgba(30, 176, 191, 0.15);
-                border-left: 4px solid #89f7fe;
-                border-radius: 8px;
-                padding: 12px 16px;
-                margin: 0;
-                color: #e8f4f8;
-                font-size: 0.95rem;
-                line-height: 1.6;
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-            ">💡 {html.escape(tip)}</div>""",
+            f"""<div style="padding: 4px 0 8px 0;">
+                <p style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: bold; color: #f1f1f1;">
+                    🍎 Daily Tip
+                </p>
+                <div style="
+                    background: rgba(30, 176, 191, 0.15);
+                    border: 1px solid rgba(137, 247, 254, 0.2);
+                    border-left: 4px solid #89f7fe;
+                    border-radius: 8px;
+                    padding: 12px 16px;
+                    margin: 0 0 4px 0;
+                    color: #e8f4f8;
+                    font-size: 0.95rem;
+                    line-height: 1.6;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    max-height: 180px;
+                    overflow-y: auto;
+                ">💡 {html.escape(tip)}</div>
+            </div>""",
             unsafe_allow_html=True,
         )
 
