@@ -12,7 +12,7 @@ class Doctor(BaseModel):
         description="Actual name of the doctor or clinic found in search."
     )
     phone: str = Field(description="Contact number or 'Visit Website' if not found.")
-    location: str = Field(description="Specific area or address in West Bengal.")
+    location: str = Field(description="Specific area or address near the user's location.")
     rating: str = Field(
         description="Rating from search results, or 'Verified' if found."
     )
@@ -34,7 +34,7 @@ class HealthResponse(BaseModel):
 
 def get_health_instructions() -> str:
     return (
-        "You are a strict Medical Triage & Health AI for West Bengal, India.\n\n"
+        "You are a strict Medical Triage & Health AI.\n\n"
         "CRITICAL RULES FOR QUERY TYPE:\n"
         "1. GENERAL HEALTH (e.g., 'how much caffeine daily?', 'what are vitamins?'): "
         "Set query_type='general_health'. Provide the answer in direct_answer and tips in advice. "
@@ -65,11 +65,11 @@ def create_health_agent() -> Agent:
 
 
 # --- 3. SEPARATE LIVE SEARCH FUNCTION (called explicitly in Python, not as agent tool) ---
-def fetch_live_doctors(symptom: str) -> str:
+def fetch_live_doctors(symptom: str, location: str) -> str:
     """Fetches real doctor info via DuckDuckGo and returns raw text for the agent to parse."""
     try:
         # Determine medical specialty for the symptom
-        query = f"best {symptom} specialist doctor clinic Kolkata West Bengal contact phone address"
+        query = f"best {symptom} specialist doctor clinic {location} contact phone address"
         with DDGS() as d:
             results = list(d.text(query, max_results=6))
         if not results:
@@ -93,7 +93,7 @@ class HealthAIFacade:
         os.environ["GROQ_API_KEY"] = api_key
         self.health_agent = create_health_agent()
 
-    def get_structured_response(self, user_prompt: str, chat_history: list) -> dict:
+    def get_structured_response(self, user_prompt: str, chat_history: list, user_location: str = "Kolkata, West Bengal, India") -> dict:
         history_text = ""
         if chat_history:
             recent = [m for m in chat_history if not m.get("is_card")][-3:]
@@ -115,16 +115,17 @@ class HealthAIFacade:
         # Step 2: If symptom query, fetch live doctors BEFORE calling the main agent
         doctor_context = ""
         if is_symptom:
-            raw_search = fetch_live_doctors(user_prompt)
+            raw_search = fetch_live_doctors(user_prompt, user_location)
             doctor_context = (
                 f"\n\n=== LIVE SEARCH RESULTS FOR DOCTORS ===\n"
                 f"{raw_search}\n"
                 f"=== END OF SEARCH RESULTS ===\n\n"
-                f"Using the search results above, extract EXACTLY 3 real doctors/clinics. "
+                f"Using the search results above, extract EXACTLY 3 real doctors/clinics near {user_location}. "
                 f"If the search results are sparse, use them as best you can and fill ratings as '4.2/5'."
             )
 
         full_input = (
+            f"User Location: {user_location}\n"
             f"{'History:\n' + history_text if history_text else ''}"
             f"User Query: {user_prompt}"
             f"{doctor_context}"

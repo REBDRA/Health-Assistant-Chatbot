@@ -2,6 +2,7 @@ import html
 import json
 import os
 import random
+import urllib.request
 from datetime import date
 import streamlit as st
 from dotenv import load_dotenv
@@ -75,6 +76,63 @@ def save_water_progress(amount):
         pass
 
 
+# 📍 Location Tracker Persistence & Auto-detection Functions
+LOCATION_FILE = "location_data.json"
+
+
+def load_location_data():
+    if os.path.exists(LOCATION_FILE):
+        try:
+            with open(LOCATION_FILE, "r") as f:
+                data = json.load(f)
+                return data.get("location", ""), data.get("allowed", False)
+        except Exception:
+            return "", False
+    return "", False
+
+
+def save_location_data(location, allowed):
+    try:
+        with open(LOCATION_FILE, "w") as f:
+            json.dump({"location": location, "allowed": allowed}, f)
+    except Exception:
+        pass
+
+
+def detect_ip_location():
+    try:
+        req = urllib.request.Request(
+            "https://ipapi.co/json/",
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        response = urllib.request.urlopen(req, timeout=5)
+        data = json.loads(response.read().decode())
+        city = data.get("city", "")
+        region = data.get("region", "")
+        country = data.get("country_name", "")
+        if city:
+            return f"{city}, {region}, {country}"
+    except Exception:
+        pass
+    
+    try:
+        req = urllib.request.Request(
+            "http://ip-api.com/json/",
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        response = urllib.request.urlopen(req, timeout=5)
+        data = json.loads(response.read().decode())
+        city = data.get("city", "")
+        region = data.get("regionName", "")
+        country = data.get("country", "")
+        if city:
+            return f"{city}, {region}, {country}"
+    except Exception:
+        pass
+    
+    return "Kolkata, West Bengal, India"
+
+
 # 🎨 CSS styling & Fixed Footer
 st.markdown(
     """
@@ -136,7 +194,8 @@ st.markdown(
 .stApp .st-key-bmi_card,
 .stApp .st-key-chat_controls_card,
 .stApp .st-key-water_tracker_card,
-.stApp .st-key-daily_tip_card {
+.stApp .st-key-daily_tip_card,
+.stApp .st-key-location_card {
     position: relative !important;
     border: 3px solid transparent !important;
     border-radius: 22px !important;
@@ -159,7 +218,8 @@ st.markdown(
 .stApp .st-key-bmi_card::before,
 .stApp .st-key-chat_controls_card::before,
 .stApp .st-key-water_tracker_card::before,
-.stApp .st-key-daily_tip_card::before {
+.stApp .st-key-daily_tip_card::before,
+.stApp .st-key-location_card::before {
     content: "";
     position: absolute;
     inset: -7px;
@@ -174,7 +234,8 @@ st.markdown(
 .stApp .st-key-bmi_card:hover,
 .stApp .st-key-chat_controls_card:hover,
 .stApp .st-key-water_tracker_card:hover,
-.stApp .st-key-daily_tip_card:hover {
+.stApp .st-key-daily_tip_card:hover,
+.stApp .st-key-location_card:hover {
     transform: translateY(-6px);
     box-shadow:
         0 28px 42px rgba(0, 0, 0, 0.46),
@@ -184,7 +245,8 @@ st.markdown(
 .stApp .st-key-bmi_card:hover::before,
 .stApp .st-key-chat_controls_card:hover::before,
 .stApp .st-key-water_tracker_card:hover::before,
-.stApp .st-key-daily_tip_card:hover::before {
+.stApp .st-key-daily_tip_card:hover::before,
+.stApp .st-key-location_card:hover::before {
     opacity: 0.5;
 }
 .quick-tools-title {
@@ -410,6 +472,45 @@ with left_col:
 with right_col:
     st.markdown("### 💡 Wellness Hub")
 
+    if "user_location" not in st.session_state:
+        loc, allowed = load_location_data()
+        st.session_state.user_location = loc
+        st.session_state.location_allowed = allowed
+
+    with st.container(border=True, key="location_card"):
+        st.markdown("#### 📍 Local Doctor Finder")
+        
+        if not st.session_state.location_allowed or not st.session_state.user_location:
+            st.markdown("<p style='font-size: 0.9rem; margin-bottom: 8px; color: #cbd5e1;'>Enable location detection to find specialized doctors near you.</p>", unsafe_allow_html=True)
+            
+            if st.button("🌐 Auto-Detect via IP", use_container_width=True):
+                with st.spinner("Locating..."):
+                    detected = detect_ip_location()
+                    st.session_state.user_location = detected
+                    st.session_state.location_allowed = True
+                    save_location_data(detected, True)
+                    st.rerun()
+                    
+            manual_loc = st.text_input("Or type your location manually:", placeholder="e.g., Delhi, India", key="manual_loc_input")
+            if manual_loc:
+                st.session_state.user_location = manual_loc
+                st.session_state.location_allowed = True
+                save_location_data(manual_loc, True)
+                st.rerun()
+        else:
+            st.markdown(
+                f"""<div style='padding: 2px 0;'>
+                    <p style='margin: 0; font-size: 0.9rem; color: #cbd5e1;'>📍 Recommendations tailored for:</p>
+                    <p style='margin: 4px 0 12px 0; font-size: 1.05rem; font-weight: bold; color: #89f7fe;'>{html.escape(st.session_state.user_location)}</p>
+                </div>""",
+                unsafe_allow_html=True
+            )
+            if st.button("✏️ Change Location", use_container_width=True):
+                st.session_state.user_location = ""
+                st.session_state.location_allowed = False
+                save_location_data("", False)
+                st.rerun()
+
     if "water_litres" not in st.session_state:
         st.session_state.water_litres = load_water_progress()
 
@@ -510,8 +611,11 @@ with main_col:
         with st.chat_message("assistant", avatar=AI_AVATAR):
             with st.spinner("Analyzing..."):
                 try:
+                    active_location = st.session_state.get("user_location", "") or "Kolkata, West Bengal, India"
                     data = health_ai.get_structured_response(
-                        user_prompt=prompt, chat_history=history_to_render
+                        user_prompt=prompt,
+                        chat_history=history_to_render,
+                        user_location=active_location
                     )
 
                     if not data.get("is_valid_query", True):
