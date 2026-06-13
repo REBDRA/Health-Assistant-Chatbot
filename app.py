@@ -54,49 +54,7 @@ def doctor_completeness_score(doc: dict) -> int:
     return score
 
 
-# 💧 Water Tracker Persistence Functions
-WATER_FILE = "water_data.json"
 
-
-def load_water_progress():
-    if os.path.exists(WATER_FILE):
-        try:
-            with open(WATER_FILE, "r") as f:
-                return json.load(f).get("water_litres", 0.0)
-        except Exception:
-            return 0.0
-    return 0.0
-
-
-def save_water_progress(amount):
-    try:
-        with open(WATER_FILE, "w") as f:
-            json.dump({"water_litres": amount}, f)
-    except Exception:
-        pass
-
-
-# 📍 Location Tracker Persistence & Auto-detection Functions
-LOCATION_FILE = "location_data.json"
-
-
-def load_location_data():
-    if os.path.exists(LOCATION_FILE):
-        try:
-            with open(LOCATION_FILE, "r") as f:
-                data = json.load(f)
-                return data.get("location", ""), data.get("allowed", False)
-        except Exception:
-            return "", False
-    return "", False
-
-
-def save_location_data(location, allowed):
-    try:
-        with open(LOCATION_FILE, "w") as f:
-            json.dump({"location": location, "allowed": allowed}, f)
-    except Exception:
-        pass
 
 
 def detect_ip_location():
@@ -304,8 +262,6 @@ div[data-testid="stButton"] button:hover {
 
 /* 💎 GEMINI-STYLE FLOATING CHAT INPUT 💎 */
 div[data-testid="stChatInput"] {
-    position: relative !important;
-    bottom: auto !important;
     z-index: 9999 !important;
     background: rgba(15, 32, 39, 0.75) !important;
     backdrop-filter: blur(15px) !important;
@@ -314,13 +270,6 @@ div[data-testid="stChatInput"] {
     box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important;
     padding: 5px !important;
     margin-bottom: 20px !important;
-}
-
-/* Override Streamlit's default bottom-pinning for chat input */
-div[data-testid="stChatInputContainer"] {
-    position: relative !important;
-    bottom: auto !important;
-    background: transparent !important;
 }
 
 /* Custom Fixed Footer for Copyright */
@@ -455,9 +404,8 @@ with right_col:
     st.markdown("### 💡 Wellness Hub")
 
     if "user_location" not in st.session_state:
-        loc, allowed = load_location_data()
-        st.session_state.user_location = loc
-        st.session_state.location_allowed = allowed
+        st.session_state.user_location = ""
+        st.session_state.location_allowed = False
 
     with st.container(border=True, key="location_card"):
         st.markdown("#### 📍 Local Doctor Finder")
@@ -473,7 +421,6 @@ with right_col:
                     detected = detect_ip_location()
                     st.session_state.user_location = detected
                     st.session_state.location_allowed = True
-                    save_location_data(detected, True)
                     st.rerun()
 
             st.caption("ℹ️ *Auto-detect uses IP address. It may show the cloud server's location (e.g. Oregon) if accessed via a VPN or proxy. If so, please type your location manually below.*")
@@ -486,7 +433,6 @@ with right_col:
             if manual_loc:
                 st.session_state.user_location = manual_loc
                 st.session_state.location_allowed = True
-                save_location_data(manual_loc, True)
                 st.rerun()
         else:
             st.markdown(
@@ -499,11 +445,10 @@ with right_col:
             if st.button("✏️ Change Location", use_container_width=True):
                 st.session_state.user_location = ""
                 st.session_state.location_allowed = False
-                save_location_data("", False)
                 st.rerun()
 
     if "water_litres" not in st.session_state:
-        st.session_state.water_litres = load_water_progress()
+        st.session_state.water_litres = 0.0
 
     with st.container(border=True, key="water_tracker_card"):
         st.markdown("#### 💧 Water Tracker")
@@ -519,18 +464,15 @@ with right_col:
                 st.session_state.water_litres = round(
                     st.session_state.water_litres + 0.25, 2
                 )
-                save_water_progress(st.session_state.water_litres)
                 st.rerun()
         if col2.button("➖ Undo", help="Remove 0.25L", use_container_width=True):
             if st.session_state.water_litres >= 0.25:
                 st.session_state.water_litres = round(
                     st.session_state.water_litres - 0.25, 2
                 )
-                save_water_progress(st.session_state.water_litres)
                 st.rerun()
         if col3.button("🔄 Reset", use_container_width=True):
             st.session_state.water_litres = 0.0
-            save_water_progress(0.0)
             st.rerun()
 
     with st.container(border=True, key="daily_tip_card"):
