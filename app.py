@@ -140,6 +140,8 @@ st.markdown(
     position: relative !important;
     border: 3px solid transparent !important;
     border-radius: 22px !important;
+    overflow: hidden !important;
+    padding-bottom: 12px !important;
     background:
         linear-gradient(145deg, rgba(15, 32, 39, 0.96), rgba(32, 74, 86, 0.88)) padding-box,
         linear-gradient(120deg, #89f7fe, #1eb0bf, #5dfff7, #1eb0bf, #89f7fe) border-box !important;
@@ -447,9 +449,12 @@ with right_col:
                 border-left: 4px solid #89f7fe;
                 border-radius: 8px;
                 padding: 12px 16px;
+                margin: 0;
                 color: #e8f4f8;
                 font-size: 0.95rem;
                 line-height: 1.6;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
             ">💡 {html.escape(tip)}</div>""",
             unsafe_allow_html=True,
         )
