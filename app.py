@@ -7,9 +7,7 @@ from datetime import date
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
-import importlib
 import ai_service
-importlib.reload(ai_service)
 from ai_service import HealthAIFacade
 
 # 1. Page config MUST be the very first Streamlit command
@@ -25,7 +23,7 @@ def get_stars(rating: str) -> str:
         full = int(num)
         half = 1 if num - full >= 0.5 else 0
         return "⭐" * full + (" ✨" if half else "")
-    except ValueError, AttributeError, IndexError:
+    except (ValueError, AttributeError, IndexError):
         return "⭐⭐⭐⭐"
 
 
@@ -348,37 +346,6 @@ if not api_key:
     )
     st.stop()
 
-SYSTEM_PROMPT = """
-You are a highly intelligent and strict Medical Triage & Health AI.
-
-You MUST return ONLY valid JSON in this format:
-{
-  "is_valid_query": true/false,
-  "query_type": "symptom_triage" or "general_health",
-  "direct_answer": "...",
-  "remedies": ["...", "...", "..."],
-  "advice": "...",
-  "doctors": [
-    {"name": "Dr. Firstname Lastname (Specialty)", "phone": "...", "location": "...", "rating": "..."}
-  ],
-  "error_message": "..."
-}
-
-CRITICAL RULES FOR VALIDATION & QUERY TYPE:
-1. ANATOMICAL LOGIC: If the user states a contradiction, gibberish, or a non-health related joke -> set "is_valid_query": false and provide a polite "error_message" asking for clarity.
-2. GENERAL HEALTH (e.g., "how much caffeine daily?", "what are vitamins?"): Set "query_type": "general_health". Provide the answer directly in "direct_answer" and additional tips in "advice". Leave "remedies" and "doctors" as empty arrays [].
-3. SYMPTOMS/TRIAGE (e.g., "my head hurts", "I have a fever"): Set "query_type": "symptom_triage". Leave "direct_answer" empty "". Fill out "remedies", "advice", and provide EXACTLY 3 "doctors".
-
-RULES FOR CONTENT GENERATION:
-1. REMEDIES: Provide specific cures, solutions, or home remedies.
-2. ADVICE: Provide broader health advice, lifestyle tips, or preventative measures.
-3. DOCTOR GENERATION (CRITICAL FOR TRIAGE):
-   - Identify the exact medical SPECIALTY needed for the user's symptom.
-   - Include this specialty in brackets next to the name: e.g., "Dr. Amit Sharma (Ophthalmologist)".
-   - DO NOT repeat the same doctor names for different queries. Generate distinct, varied, and realistic doctor names for West Bengal, India.
-   - Give EXACTLY 3 doctors. Ratings must be 'X.X/5'.
-"""
-
 health_ai = HealthAIFacade(api_key=api_key)
 
 
@@ -407,7 +374,7 @@ def get_daily_tip() -> str:
             max_tokens=50,
             temperature=0.9,
         )
-        tip = response.choices[0].message.content.strip()
+        tip = (response.choices[0].message.content or "").strip()
     except Exception:
         tip = (
             "Stay hydrated! Drinking enough water helps your body "

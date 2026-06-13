@@ -58,7 +58,7 @@ def get_health_instructions() -> str:
     )
 
 
-def create_health_agent() -> Agent:
+def create_health_agent():
     return Agent(
         model="groq:llama-3.3-70b-versatile",
         output_type=HealthResponse,
