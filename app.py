@@ -100,9 +100,18 @@ def save_location_data(location, allowed):
 
 
 def detect_ip_location():
+    client_ip = None
+    try:
+        client_ip = st.context.ip_address
+    except Exception:
+        pass
+
+    if client_ip in (None, "127.0.0.1", "localhost", "::1"):
+        client_ip = ""
+
     services = [
         (
-            "https://ipapi.co/json/",
+            f"https://ipapi.co/{client_ip}/json/" if client_ip else "https://ipapi.co/json/",
             lambda d: (
                 d.get("city", ""),
                 d.get("region", ""),
@@ -110,7 +119,7 @@ def detect_ip_location():
             ),
         ),
         (
-            "https://ip-api.com/json/",
+            f"https://ip-api.com/json/{client_ip}" if client_ip else "https://ip-api.com/json/",
             lambda d: (
                 d.get("city", ""),
                 d.get("regionName", ""),
@@ -118,7 +127,7 @@ def detect_ip_location():
             ),
         ),
         (
-            "https://ipwhois.app/json/",
+            f"https://ipwhois.app/json/{client_ip}" if client_ip else "https://ipwhois.app/json/",
             lambda d: (d.get("city", ""), d.get("region", ""), d.get("country", "")),
         ),
     ]
