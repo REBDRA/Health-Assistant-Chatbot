@@ -467,6 +467,8 @@ with right_col:
                     save_location_data(detected, True)
                     st.rerun()
 
+            st.caption("ℹ️ *Auto-detect uses IP address. It may show the cloud server's location (e.g. Oregon) if accessed via a VPN or proxy. If so, please type your location manually below.*")
+
             manual_loc = st.text_input(
                 "Or type your location manually:",
                 placeholder="e.g., Delhi, India",
