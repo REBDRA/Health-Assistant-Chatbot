@@ -7,7 +7,9 @@ from datetime import date
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
-
+import importlib
+import ai_service
+importlib.reload(ai_service)
 from ai_service import HealthAIFacade
 
 # 1. Page config MUST be the very first Streamlit command

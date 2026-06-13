@@ -12,13 +12,15 @@ class Doctor(BaseModel):
         description="Actual name of the doctor or clinic found in search."
     )
     phone: str = Field(description="Contact number or 'Visit Website' if not found.")
-    location: str = Field(description="Specific area or address near the user's location.")
+    location: str = Field(
+        description="Specific area or address near the user's location."
+    )
     rating: str = Field(
         description="Rating from search results, or 'Verified' if found."
     )
     link: str = Field(
         description="URL to the doctor's profile or website from the search results, or empty if none.",
-        default=""
+        default="",
     )
 
 
@@ -69,7 +71,9 @@ def fetch_live_doctors(symptom: str, location: str) -> str:
     """Fetches real doctor info via DuckDuckGo and returns raw text for the agent to parse."""
     try:
         # Determine medical specialty for the symptom
-        query = f"best {symptom} specialist doctor clinic {location} contact phone address"
+        query = (
+            f"best {symptom} specialist doctor clinic {location} contact phone address"
+        )
         with DDGS() as d:
             results = list(d.text(query, max_results=6))
         if not results:
@@ -93,7 +97,12 @@ class HealthAIFacade:
         os.environ["GROQ_API_KEY"] = api_key
         self.health_agent = create_health_agent()
 
-    def get_structured_response(self, user_prompt: str, chat_history: list, user_location: str = "Kolkata, West Bengal, India") -> dict:
+    def get_structured_response(
+        self,
+        user_prompt: str,
+        chat_history: list,
+        user_location: str = "Kolkata, West Bengal, India",
+    ) -> dict:
         history_text = ""
         if chat_history:
             recent = [m for m in chat_history if not m.get("is_card")][-3:]
