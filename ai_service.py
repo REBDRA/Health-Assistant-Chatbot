@@ -44,7 +44,7 @@ def get_health_instructions() -> str:
         "2. SYMPTOMS/TRIAGE (e.g., 'my head hurts', 'red eyes', 'I have a fever'): "
         "Set query_type='symptom_triage'. Leave direct_answer empty. "
         "Fill out remedies, advice. For doctors, use ONLY the real search results provided in the prompt — "
-        "extract name, phone, location, rating from those results. Provide EXACTLY 3 doctors.\n"
+        "extract name, phone, location, rating from those results. Provide up to 3 doctors (leave empty if no search results are found).\n"
         "3. If the query is nonsense or non-health related, set is_valid_query=false with an error_message.\n\n"
         "RULES FOR DOCTORS (CRITICAL FOR TRIAGE):\n"
         "- Extract real clinic/doctor names, phone numbers, addresses, and URL links from the search results given to you.\n"
@@ -129,7 +129,7 @@ class HealthAIFacade:
                 f"\n\n=== LIVE SEARCH RESULTS FOR DOCTORS ===\n"
                 f"{raw_search}\n"
                 f"=== END OF SEARCH RESULTS ===\n\n"
-                f"Using the search results above, extract EXACTLY 3 real doctors/clinics near {user_location}. "
+                f"Using the search results above, extract up to 3 real doctors/clinics near {user_location} (leave empty if no search results are found). "
                 f"If the search results are sparse, use them as best you can and fill ratings as '4.2/5'."
             )
 
