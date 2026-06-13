@@ -190,6 +190,18 @@ st.markdown(
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
+/* Daily Tip - Improve readability */
+.stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.stAlert) p {
+    color: #e8f4f8 !important;
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+}
+.stApp [data-testid="stAlertContainer"] {
+    background: rgba(30, 176, 191, 0.15) !important;
+    border-left: 4px solid #89f7fe !important;
+    border-radius: 8px !important;
+}
+
 /* Updated Button Aesthetic */
 div[data-testid="stButton"] button {
     background: rgba(255, 255, 255, 0.08) !important;
@@ -393,7 +405,19 @@ with right_col:
             "Aim for 7-8 hours of sleep for optimal immune function.",
             "Include a source of protein in every meal.",
         ]
-        st.info(random.choice(tips))
+        tip = random.choice(tips)
+        st.markdown(
+            f"""<div style="
+                background: rgba(30, 176, 191, 0.15);
+                border-left: 4px solid #89f7fe;
+                border-radius: 8px;
+                padding: 12px 16px;
+                color: #e8f4f8;
+                font-size: 0.95rem;
+                line-height: 1.6;
+            ">💡 {tip}</div>""",
+            unsafe_allow_html=True,
+        )
 
 # ------------------------------------------
 # 🤖 MAIN COLUMN: The Chatbot Interface
