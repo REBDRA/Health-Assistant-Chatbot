@@ -1,8 +1,11 @@
+import html
 import json
 import os
 import random
+from datetime import date
 import streamlit as st
 from dotenv import load_dotenv
+from groq import Groq
 
 from ai_service import HealthAIFacade
 
@@ -311,6 +314,44 @@ RULES FOR CONTENT GENERATION:
 
 health_ai = HealthAIFacade(api_key=api_key)
 
+
+def get_daily_tip() -> str:
+    """Generate a fresh daily health tip using Groq AI, cached by date."""
+    today = date.today().isoformat()
+    if "daily_tip" in st.session_state and st.session_state.daily_tip_date == today:
+        return st.session_state.daily_tip
+
+    try:
+        client = Groq(api_key=api_key)
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a friendly health assistant. "
+                        "Give ONE short, practical daily health tip in 1-2 sentences. "
+                        "Be concise, actionable, and positive. "
+                        "Do NOT use any formatting, just plain text."
+                    ),
+                },
+                {"role": "user", "content": "Give me today's health tip."},
+            ],
+            max_tokens=80,
+            temperature=0.9,
+        )
+        tip = response.choices[0].message.content.strip()
+    except Exception:
+        tip = (
+            "Stay hydrated! Drinking enough water helps your body "
+            "function properly and keeps your energy levels up."
+        )
+
+    st.session_state.daily_tip = tip
+    st.session_state.daily_tip_date = today
+    return tip
+
+
 # ==========================================
 # 📐 NEW LAYOUT: 3 Columns
 # ==========================================
@@ -399,13 +440,7 @@ with right_col:
 
     with st.container(border=True, key="daily_tip_card"):
         st.markdown("#### 🍎 Daily Tip")
-        tips = [
-            "Take a 5-minute walking break every hour.",
-            "Screen time? Follow the 20-20-20 rule to rest your eyes.",
-            "Aim for 7-8 hours of sleep for optimal immune function.",
-            "Include a source of protein in every meal.",
-        ]
-        tip = random.choice(tips)
+        tip = get_daily_tip()
         st.markdown(
             f"""<div style="
                 background: rgba(30, 176, 191, 0.15);
@@ -415,7 +450,7 @@ with right_col:
                 color: #e8f4f8;
                 font-size: 0.95rem;
                 line-height: 1.6;
-            ">💡 {tip}</div>""",
+            ">💡 {html.escape(tip)}</div>""",
             unsafe_allow_html=True,
         )
 
