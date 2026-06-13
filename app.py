@@ -23,7 +23,7 @@ def get_stars(rating: str) -> str:
         full = int(num)
         half = 1 if num - full >= 0.5 else 0
         return "⭐" * full + (" ✨" if half else "")
-    except (ValueError, AttributeError, IndexError):
+    except ValueError, AttributeError, IndexError:
         return "⭐⭐⭐⭐"
 
 
@@ -100,36 +100,40 @@ def save_location_data(location, allowed):
 
 
 def detect_ip_location():
-    try:
-        req = urllib.request.Request(
+    services = [
+        (
             "https://ipapi.co/json/",
-            headers={"User-Agent": "Mozilla/5.0"}
-        )
-        response = urllib.request.urlopen(req, timeout=5)
-        data = json.loads(response.read().decode())
-        city = data.get("city", "")
-        region = data.get("region", "")
-        country = data.get("country_name", "")
-        if city:
-            return f"{city}, {region}, {country}"
-    except Exception:
-        pass
-    
-    try:
-        req = urllib.request.Request(
-            "http://ip-api.com/json/",
-            headers={"User-Agent": "Mozilla/5.0"}
-        )
-        response = urllib.request.urlopen(req, timeout=5)
-        data = json.loads(response.read().decode())
-        city = data.get("city", "")
-        region = data.get("regionName", "")
-        country = data.get("country", "")
-        if city:
-            return f"{city}, {region}, {country}"
-    except Exception:
-        pass
-    
+            lambda d: (
+                d.get("city", ""),
+                d.get("region", ""),
+                d.get("country_name", ""),
+            ),
+        ),
+        (
+            "https://ip-api.com/json/",
+            lambda d: (
+                d.get("city", ""),
+                d.get("regionName", ""),
+                d.get("country", ""),
+            ),
+        ),
+        (
+            "https://ipwhois.app/json/",
+            lambda d: (d.get("city", ""), d.get("region", ""), d.get("country", "")),
+        ),
+    ]
+    for url, parse in services:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            response = urllib.request.urlopen(req, timeout=5)
+            data = json.loads(response.read().decode())
+            if data.get("success") is False:
+                continue
+            city, region, country = parse(data)
+            if city:
+                return f"{city}, {region}, {country}"
+        except Exception:
+            continue
     return "Kolkata, West Bengal, India"
 
 
@@ -448,10 +452,13 @@ with right_col:
 
     with st.container(border=True, key="location_card"):
         st.markdown("#### 📍 Local Doctor Finder")
-        
+
         if not st.session_state.location_allowed or not st.session_state.user_location:
-            st.markdown("<p style='font-size: 0.9rem; margin-bottom: 8px; color: #cbd5e1;'>Enable location detection to find specialized doctors near you.</p>", unsafe_allow_html=True)
-            
+            st.markdown(
+                "<p style='font-size: 0.9rem; margin-bottom: 8px; color: #cbd5e1;'>Enable location detection to find specialized doctors near you.</p>",
+                unsafe_allow_html=True,
+            )
+
             if st.button("🌐 Auto-Detect via IP", use_container_width=True):
                 with st.spinner("Locating..."):
                     detected = detect_ip_location()
@@ -459,8 +466,12 @@ with right_col:
                     st.session_state.location_allowed = True
                     save_location_data(detected, True)
                     st.rerun()
-                    
-            manual_loc = st.text_input("Or type your location manually:", placeholder="e.g., Delhi, India", key="manual_loc_input")
+
+            manual_loc = st.text_input(
+                "Or type your location manually:",
+                placeholder="e.g., Delhi, India",
+                key="manual_loc_input",
+            )
             if manual_loc:
                 st.session_state.user_location = manual_loc
                 st.session_state.location_allowed = True
@@ -472,7 +483,7 @@ with right_col:
                     <p style='margin: 0; font-size: 0.9rem; color: #cbd5e1;'>📍 Recommendations tailored for:</p>
                     <p style='margin: 4px 0 12px 0; font-size: 1.05rem; font-weight: bold; color: #89f7fe;'>{html.escape(st.session_state.user_location)}</p>
                 </div>""",
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
             if st.button("✏️ Change Location", use_container_width=True):
                 st.session_state.user_location = ""
@@ -580,11 +591,14 @@ with main_col:
         with st.chat_message("assistant", avatar=AI_AVATAR):
             with st.spinner("Analyzing..."):
                 try:
-                    active_location = st.session_state.get("user_location", "") or "Kolkata, West Bengal, India"
+                    active_location = (
+                        st.session_state.get("user_location", "")
+                        or "Kolkata, West Bengal, India"
+                    )
                     data = health_ai.get_structured_response(
                         user_prompt=prompt,
                         chat_history=history_to_render,
-                        user_location=active_location
+                        user_location=active_location,
                     )
 
                     if not data.get("is_valid_query", True):
