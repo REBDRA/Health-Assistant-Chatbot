@@ -1,3 +1,4 @@
+import html
 import json
 import os
 import random
@@ -148,7 +149,6 @@ st.markdown(
     transform: translateY(0);
     animation: toolCardBorderFlow 2.7s linear infinite !important;
     transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out !important;
-    will-change: background-position, transform;
 }
 .stApp .st-key-bmi_card::before,
 .stApp .st-key-chat_controls_card::before,
@@ -239,9 +239,16 @@ div[data-testid="stChatInputContainer"] {
     color: rgba(255, 255, 255, 0.4);
     font-size: 12px;
     font-family: 'Nunito', sans-serif;
-    z-index: 999999;
+    z-index: 999;
     pointer-events: none;
     text-align: center;
+}
+
+/* Hide footer on small screens to prevent overlap with chat input */
+@media (max-width: 768px) {
+    .custom-footer {
+        display: none;
+    }
 }
 </style>
 
@@ -361,9 +368,12 @@ with right_col:
         st.markdown("#### 💧 Water Tracker")
 
         progress_val = min(st.session_state.water_litres / 2.0, 1.0)
-        st.progress(
-            progress_val, text=f"{st.session_state.water_litres:.2f} / 2.0 Litres"
-        )
+        progress_text = f"{st.session_state.water_litres:.2f} / 2.0 Litres"
+        try:
+            st.progress(progress_val, text=progress_text)
+        except TypeError:
+            st.progress(progress_val)
+            st.caption(progress_text)
 
         col1, col2, col3 = st.columns(3)
         if col1.button("➕ Drink", help="Add 0.25L", use_container_width=True):
@@ -505,8 +515,9 @@ with main_col:
                             output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
 
                     if is_card:
+                        safe_output = html.escape(output).replace("\n", "<br>")
                         st.markdown(
-                            f'<div class="playful-card">{output}</div>',
+                            f'<div class="playful-card">{safe_output}</div>',
                             unsafe_allow_html=True,
                         )
                     else:
@@ -527,17 +538,22 @@ with main_col:
                     )
 
     # Display historical chat history in reverse (NEWEST FIRST)
-    # We group messages into conversational turns so the user's prompt appears above the AI's response.
+    # Group messages into conversational turns (user + assistant pairs)
     turns = []
-    current_turn = []
-    for msg in history_to_render:
-        if msg["role"] == "user" and current_turn:
-            turns.append(current_turn)
-            current_turn = [msg]
+    i = 0
+    while i < len(history_to_render):
+        turn = [history_to_render[i]]
+        # If this is a user message and next is assistant, group them
+        if (
+            history_to_render[i]["role"] == "user"
+            and i + 1 < len(history_to_render)
+            and history_to_render[i + 1]["role"] == "assistant"
+        ):
+            turn.append(history_to_render[i + 1])
+            i += 2
         else:
-            current_turn.append(msg)
-    if current_turn:
-        turns.append(current_turn)
+            i += 1
+        turns.append(turn)
 
     for turn in reversed(turns):
         for msg in turn:
@@ -545,8 +561,9 @@ with main_col:
     
             with st.chat_message(msg["role"], avatar=avatar):
                 if msg.get("is_card"):
+                    safe_content = html.escape(msg["content"]).replace("\n", "<br>")
                     st.markdown(
-                        f'<div class="playful-card">{msg["content"]}</div>',
+                        f'<div class="playful-card">{safe_content}</div>',
                         unsafe_allow_html=True,
                     )
                 else:
