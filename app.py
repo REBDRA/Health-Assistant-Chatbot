@@ -1,66 +1,65 @@
 import html
 import json
 import os
-import random
 import urllib.request
 from datetime import date
+from typing import Optional
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
 import ai_service
 from ai_service import HealthAIFacade
 
-# 1. Page config MUST be the very first Streamlit command
-st.set_page_config(page_title="Health Assistant AI", page_icon="🩺", layout="wide")
+# 1. Streamlit Page Configuration
+st.set_page_config(
+    page_title="Health Assistant AI",
+    page_icon="🩺",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 load_dotenv()
 
 
-# ⭐ Rating stars
+# --- HELPER FUNCTIONS ---
+
 def get_stars(rating: str) -> str:
+    """Converts a numerical rating string (e.g. '4.5/5') to star emojis."""
     try:
         num = float(rating.split("/")[0])
         full = int(num)
-        half = 1 if num - full >= 0.5 else 0
+        half = 1 if (num - full) >= 0.5 else 0
         return "⭐" * full + (" ✨" if half else "")
-    except ValueError, AttributeError, IndexError:
+    except (ValueError, AttributeError, IndexError):
         return "⭐⭐⭐⭐"
 
 
-# 🏥 Doctor completeness score — higher = more info available
 def doctor_completeness_score(doc: dict) -> int:
+    """Ranks doctors based on available contact details and credibility."""
     score = 0
-    name = doc.get("name", "")
-    phone = doc.get("phone", "")
-    location = doc.get("location", "")
-    rating = doc.get("rating", "")
+    name = doc.get("name", "").lower()
+    phone = doc.get("phone", "").lower()
+    location = doc.get("location", "").lower()
+    rating = doc.get("rating", "").lower()
 
-    # Name: penalise placeholders
-    if name and name.lower() not in ("unknown", "no doctors found", ""):
+    if name and name not in ("unknown", "no doctors found", ""):
         score += 3
-    # Phone: real number beats 'Visit Website' or N/A
-    if phone and phone.lower() not in ("visit website", "n/a", ""):
+    if phone and phone not in ("visit website", "n/a", "not available", ""):
         score += 3
-    # Location: specific address beats generic / 'not available'
-    if location and location.lower() not in ("not available", "unknown", "", "kolkata"):
+    if location and location not in ("not available", "unknown", "", "not specified"):
         score += 2
-    # Rating present
-    if rating and rating.lower() not in ("", "verified"):
+    if rating and rating not in ("", "verified"):
         score += 1
-    # Link present
     if doc.get("link"):
         score += 1
-
     return score
 
 
-
-
-
-def detect_ip_location():
+def detect_ip_location() -> str:
+    """Auto-detects geographical location via IP with multiple fallback services."""
     client_ip = None
     try:
-        client_ip = st.context.ip_address
+        client_ip = getattr(st.context, "ip_address", None)
     except Exception:
         pass
 
@@ -70,599 +69,598 @@ def detect_ip_location():
     services = [
         (
             f"https://ipapi.co/{client_ip}/json/" if client_ip else "https://ipapi.co/json/",
-            lambda d: (
-                d.get("city", ""),
-                d.get("region", ""),
-                d.get("country_name", ""),
-            ),
+            lambda d: (d.get("city", ""), d.get("region", ""), d.get("country_name", "")),
         ),
         (
             f"https://ip-api.com/json/{client_ip}" if client_ip else "https://ip-api.com/json/",
-            lambda d: (
-                d.get("city", ""),
-                d.get("regionName", ""),
-                d.get("country", ""),
-            ),
+            lambda d: (d.get("city", ""), d.get("regionName", ""), d.get("country", "")),
         ),
         (
             f"https://ipwhois.app/json/{client_ip}" if client_ip else "https://ipwhois.app/json/",
             lambda d: (d.get("city", ""), d.get("region", ""), d.get("country", "")),
         ),
     ]
+
     for url, parse in services:
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            response = urllib.request.urlopen(req, timeout=5)
-            data = json.loads(response.read().decode())
-            if data.get("success") is False:
-                continue
-            city, region, country = parse(data)
-            if city:
-                return f"{city}, {region}, {country}"
+            req = urllib.request.Request(url, headers={"User-Agent": "HealthAssistant/1.0"})
+            with urllib.request.urlopen(req, timeout=4) as response:
+                data = json.loads(response.read().decode())
+                if data.get("success") is False or data.get("status") == "fail":
+                    continue
+                city, region, country = parse(data)
+                if city:
+                    parts = [p for p in [city, region, country] if p]
+                    return ", ".join(parts)
         except Exception:
             continue
+
     return "Kolkata, West Bengal, India"
 
 
-# 🎨 CSS styling & Fixed Footer
+def get_daily_tip(api_key: Optional[str]) -> str:
+    """Fetches a fresh daily health tip, caching within session state."""
+    today = date.today().isoformat()
+    if "daily_tip" in st.session_state and st.session_state.get("daily_tip_date") == today:
+        return st.session_state["daily_tip"]
+
+    tip = (
+        "Hydration is key to cellular health! Drinking water before meals aids digestion "
+        "and keeps cognitive energy sharp throughout your day."
+    )
+
+    if api_key:
+        try:
+            client = Groq(api_key=api_key)
+            response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Provide ONE practical, uplifting, actionable health tip in 1-2 sentences. "
+                            "Under 25 words. Plain text only."
+                        ),
+                    },
+                    {"role": "user", "content": "Give me a daily health tip."},
+                ],
+                max_tokens=45,
+                temperature=0.7,
+            )
+            fresh_tip = (response.choices[0].message.content or "").strip()
+            if fresh_tip:
+                tip = fresh_tip
+        except Exception:
+            pass
+
+    st.session_state["daily_tip"] = tip
+    st.session_state["daily_tip_date"] = today
+    return tip
+
+
+# --- CSS & STYLING ---
+
 st.markdown(
     """
 <style>
-.stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
-[data-testid="block-container"] { padding-bottom: 30px; } 
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-/* Aesthetic Card CSS (Chat Bubbles) */
-.playful-card {
-    background: rgba(255, 255, 255, 0.08); 
-    backdrop-filter: blur(10px); 
-    border: 1px solid rgba(137, 247, 254, 0.3);
-    border-radius: 20px; 
-    padding: 20px;
-    color: #f1f1f1; 
-    font-family: 'Nunito', sans-serif; 
-    white-space: pre-wrap; 
-    line-height: 1.6;
-    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); 
-    transition: all 0.3s ease-in-out; 
-    margin-bottom: 15px;
-}
-.playful-card:hover {
-    transform: translateY(-6px); 
-    box-shadow: 0px 12px 30px rgba(137, 247, 254, 0.2); 
-    border-color: rgba(137, 247, 254, 0.8);
-    background: rgba(255, 255, 255, 0.12);
+html, body, [class*="css"] {
+    font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
-/* 💎 BRUTE-FORCE DARK BORDERS FOR SIDEBAR WIDGETS 💎 */
-.stApp [data-testid="stVerticalBlockBorderWrapper"] {
-    position: relative !important;
-    background-color: rgba(15, 32, 39, 0.75) !important;
-    background-image: none !important;
-    backdrop-filter: blur(15px) !important;
-    border: 1px solid rgba(137, 247, 254, 0.4) !important;
-    border-radius: 15px !important;
-    box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important;
-    transition: all 0.3s ease-in-out !important;
-}
-.stApp [data-testid="stVerticalBlockBorderWrapper"]:hover {
-    border-color: rgba(137, 247, 254, 0.9) !important;
-    box-shadow: 0px 12px 45px rgba(137, 247, 254, 0.2) !important;
+.stApp {
+    background: radial-gradient(circle at 10% 20%, #0d1e28 0%, #071017 90%);
+    color: #e2e8f0;
 }
 
-@keyframes toolCardBorderFlow {
-    0% {
-        background-position: 0% 50%, 0% 50%;
-    }
-    50% {
-        background-position: 0% 50%, 100% 50%;
-    }
-    to {
-        background-position: 0% 50%, 200% 50%;
-    }
+[data-testid="block-container"] {
+    padding-top: 2rem;
+    padding-bottom: 3.5rem;
 }
 
-/* Streamlit puts keys on the outer wrapper, so this is the visible card frame. */
-.stApp .st-key-bmi_card,
-.stApp .st-key-chat_controls_card,
-.stApp .st-key-water_tracker_card,
-.stApp .st-key-daily_tip_card,
-.stApp .st-key-location_card {
-    position: relative !important;
-    border: 3px solid transparent !important;
-    border-radius: 22px !important;
-    overflow: hidden !important;
-    padding-bottom: 12px !important;
-    height: fit-content !important;
-    background:
-        linear-gradient(145deg, rgba(15, 32, 39, 0.96), rgba(32, 74, 86, 0.88)) padding-box,
-        linear-gradient(120deg, #89f7fe, #1eb0bf, #5dfff7, #1eb0bf, #89f7fe) border-box !important;
-    background-size: 100% 100%, 320% 320% !important;
-    box-shadow:
-        0 18px 30px rgba(0, 0, 0, 0.42),
-        0 8px 0 rgba(5, 17, 24, 0.9),
-        0 0 26px rgba(137, 247, 254, 0.28) !important;
-    transform: translateY(0);
-    animation: toolCardBorderFlow 2.7s linear infinite !important;
-    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out !important;
-    will-change: background-position, transform;
-}
-.stApp .st-key-bmi_card::before,
-.stApp .st-key-chat_controls_card::before,
-.stApp .st-key-water_tracker_card::before,
-.stApp .st-key-daily_tip_card::before,
-.stApp .st-key-location_card::before {
-    content: "";
-    position: absolute;
-    inset: -7px;
-    z-index: -1;
-    border-radius: 28px;
-    background: linear-gradient(120deg, #89f7fe, #1eb0bf, #5dfff7, #1eb0bf, #89f7fe);
-    background-size: 320% 320%;
-    filter: blur(14px);
-    opacity: 0.34;
-    animation: toolCardBorderFlow 2.7s linear infinite;
-}
-.stApp .st-key-bmi_card:hover,
-.stApp .st-key-chat_controls_card:hover,
-.stApp .st-key-water_tracker_card:hover,
-.stApp .st-key-daily_tip_card:hover,
-.stApp .st-key-location_card:hover {
-    transform: translateY(-6px);
-    box-shadow:
-        0 28px 42px rgba(0, 0, 0, 0.46),
-        0 12px 0 rgba(5, 17, 24, 0.9),
-        0 0 30px rgba(137, 247, 254, 0.34) !important;
-}
-.stApp .st-key-bmi_card:hover::before,
-.stApp .st-key-chat_controls_card:hover::before,
-.stApp .st-key-water_tracker_card:hover::before,
-.stApp .st-key-daily_tip_card:hover::before,
-.stApp .st-key-location_card:hover::before {
-    opacity: 0.5;
-}
-.quick-tools-title {
-    margin: 0 0 18px 0;
-    color: #f7fdff;
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.35rem;
-    font-weight: 800;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+/* Glassmorphism Cards */
+.glass-card {
+    background: rgba(19, 35, 46, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(137, 247, 254, 0.22);
+    border-radius: 16px;
+    padding: 1.25rem;
+    margin-bottom: 1.2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
-/* Daily Tip - Improve readability */
-.stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.stAlert) p {
-    color: #e8f4f8 !important;
-    font-size: 0.95rem !important;
-    line-height: 1.6 !important;
-}
-.stApp [data-testid="stAlertContainer"] {
-    background: rgba(30, 176, 191, 0.15) !important;
-    border-left: 4px solid #89f7fe !important;
-    border-radius: 8px !important;
+.glass-card:hover {
+    border-color: rgba(137, 247, 254, 0.5);
 }
 
-/* Updated Button Aesthetic */
+/* Chat Bubbles */
+.chat-response-card {
+    background: rgba(15, 30, 42, 0.82);
+    border: 1px solid rgba(137, 247, 254, 0.28);
+    border-radius: 18px;
+    padding: 1.4rem;
+    color: #f1f5f9;
+    line-height: 1.65;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    margin-bottom: 1rem;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Emergency Banner */
+.emergency-banner {
+    background: linear-gradient(90deg, rgba(220, 38, 38, 0.25), rgba(185, 28, 28, 0.15));
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    border-left: 5px solid #ef4444;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 1.2rem;
+    font-size: 0.88rem;
+    color: #fca5a5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Quick Prompt Pill Buttons */
+div[data-testid="stHorizontalBlock"] button[kind="secondary"] {
+    background: rgba(137, 247, 254, 0.08) !important;
+    border: 1px solid rgba(137, 247, 254, 0.25) !important;
+    border-radius: 20px !important;
+    color: #89f7fe !important;
+    font-size: 0.82rem !important;
+    padding: 0.3rem 0.8rem !important;
+    transition: all 0.2s ease !important;
+}
+
+div[data-testid="stHorizontalBlock"] button[kind="secondary"]:hover {
+    background: rgba(137, 247, 254, 0.2) !important;
+    border-color: #89f7fe !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Primary Buttons */
 div[data-testid="stButton"] button {
-    background: rgba(255, 255, 255, 0.08) !important;
-    backdrop-filter: blur(10px) !important;
-    border: 1px solid rgba(137, 247, 254, 0.3) !important;
-    color: #f1f1f1 !important;
-    font-family: 'Nunito', sans-serif !important;
-    border-radius: 12px !important;
-    transition: all 0.3s ease-in-out !important;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1) !important;
-}
-div[data-testid="stButton"] button:hover {
-    transform: translateY(-4px) !important; 
-    box-shadow: 0px 8px 20px rgba(137, 247, 254, 0.25) !important;
-    border-color: rgba(137, 247, 254, 0.8) !important;
-    background: rgba(255, 255, 255, 0.15) !important;
-    color: #ffffff !important;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.2s ease;
 }
 
-/* 💎 GEMINI-STYLE FLOATING CHAT INPUT 💎 */
-div[data-testid="stChatInput"] {
-    z-index: 9999 !important;
-    background: rgba(15, 32, 39, 0.75) !important;
-    backdrop-filter: blur(15px) !important;
-    border-radius: 15px !important;
-    border: 1px solid rgba(137, 247, 254, 0.4) !important;
-    box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.5) !important;
-    padding: 5px !important;
-    margin-bottom: 20px !important;
-}
-
-/* Custom Fixed Footer for Copyright */
+/* Footer */
 .custom-footer {
     position: fixed;
-    bottom: 5px;
+    bottom: 6px;
     left: 50%;
     transform: translateX(-50%);
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 12px;
-    font-family: 'Nunito', sans-serif;
-    z-index: 999999;
+    color: rgba(203, 213, 225, 0.55);
+    font-size: 11px;
+    z-index: 999;
     pointer-events: none;
     text-align: center;
 }
 </style>
 
 <div class="custom-footer">
-    © 2026 Made with ❤️ by <b>Arpan</b>
+    🩺 Health Assistant AI • Evidence-based triage • Consult licensed medical professionals for diagnoses
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# 🔒 Secure API Key Loading
+
+# --- API KEY MANAGEMENT ---
+
+env_key = os.environ.get("GROQ_API_KEY")
 try:
-    api_key = st.secrets.get("GROQ_API_KEY")
+    secret_key = st.secrets.get("GROQ_API_KEY")
 except Exception:
-    api_key = None
+    secret_key = None
 
-api_key = api_key or os.environ.get("GROQ_API_KEY")
+stored_key = env_key or secret_key or st.session_state.get("user_groq_api_key", "")
 
-if not api_key:
-    st.error(
-        "GROQ_API_KEY is missing! Please set it in secrets.toml or as an environment variable."
+# Sidebar Configuration
+with st.sidebar:
+    st.markdown("### ⚙️ System Settings")
+
+    user_input_key = st.text_input(
+        "Groq API Key",
+        value=stored_key,
+        type="password",
+        help="Get your free key from https://console.groq.com/keys",
+        placeholder="gsk_...",
     )
-    st.stop()
 
-health_ai = HealthAIFacade(api_key=api_key)
+    if user_input_key != stored_key:
+        st.session_state["user_groq_api_key"] = user_input_key.strip()
+        st.rerun()
+
+    active_api_key = st.session_state.get("user_groq_api_key") or stored_key
+
+    if active_api_key:
+        st.success("🟢 API Key Active", icon="✅")
+    else:
+        st.warning("🟠 API Key Missing", icon="⚠️")
+        st.markdown(
+            """
+            <small style='color: #94a3b8;'>
+            To enable AI diagnoses, enter a free Groq API key above or set <code>GROQ_API_KEY</code> in <code>.env</code>.
+            <br><a href='https://console.groq.com/keys' target='_blank' style='color: #89f7fe;'>Get Free Groq Key →</a>
+            </small>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("---")
+
+    # Clear Chat & Consultation Export
+    st.markdown("### 💬 Chat Management")
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
+        st.session_state["messages"] = []
+        st.rerun()
+
+    if "messages" in st.session_state and st.session_state["messages"]:
+        # Prepare consultation export text
+        export_text = "# Health Assistant Consultation Report\n\n"
+        export_text += f"Date: {date.today().isoformat()}\n"
+        export_text += f"Location: {st.session_state.get('user_location', 'Not specified')}\n\n---\n\n"
+        for m in st.session_state["messages"]:
+            role = "Patient" if m.get("role") == "user" else "Health AI"
+            export_text += f"### {role}\n{m.get('content')}\n\n"
+        export_text += "\n\n*Note: This report is generated by an AI assistant for informative triage only.*"
+
+        st.download_button(
+            label="📥 Export Medical Summary",
+            data=export_text,
+            file_name=f"health_consultation_{date.today().isoformat()}.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
 
 
-def get_daily_tip() -> str:
-    """Generate a fresh daily health tip using Groq AI, cached by date."""
-    today = date.today().isoformat()
-    if "daily_tip" in st.session_state and st.session_state.daily_tip_date == today:
-        return st.session_state.daily_tip
-
+# Initialize AI Facade if key exists
+health_ai = None
+if active_api_key:
     try:
-        client = Groq(api_key=api_key)
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a friendly health assistant. "
-                        "Give ONE short, practical daily health tip in 1-2 sentences MAX. "
-                        "Keep it under 30 words. Be concise and actionable. "
-                        "Do NOT use any formatting, just plain text."
-                    ),
-                },
-                {"role": "user", "content": "Give me today's health tip."},
-            ],
-            max_tokens=50,
-            temperature=0.9,
-        )
-        tip = (response.choices[0].message.content or "").strip()
-    except Exception:
-        tip = (
-            "Stay hydrated! Drinking enough water helps your body "
-            "function properly and keeps your energy levels up."
-        )
+        health_ai = HealthAIFacade(api_key=active_api_key)
+    except Exception as exc:
+        st.sidebar.error(f"AI Service Initialization Error: {exc}")
 
-    st.session_state.daily_tip = tip
-    st.session_state.daily_tip_date = today
-    return tip
+
+# --- THREE-COLUMN WORKSPACE LAYOUT ---
+
+left_col, main_col, right_col = st.columns([1, 2.2, 1], gap="medium")
 
 
 # ==========================================
-# 📐 NEW LAYOUT: 3 Columns
+# ⚡ LEFT COLUMN: Quick Health Tools
 # ==========================================
-left_col, main_col, right_col = st.columns([1, 2.2, 1], gap="large")
-
-# ------------------------------------------
-# ⚡ LEFT COLUMN: Quick Tools
-# ------------------------------------------
 with left_col:
-    st.markdown(
-        '<div class="quick-tools-title">⚡ Quick Tools</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown("### ⚡ Quick Tools")
 
-    with st.container(border=True, key="bmi_card"):
-        st.markdown("#### ⚖️ BMI Calculator")
-        weight = st.number_input("Weight (kg)", min_value=10.0, value=70.0, step=0.5)
-        height = st.number_input("Height (cm)", min_value=50.0, value=170.0, step=1.0)
+    # BMI Calculator Widget
+    with st.container(border=True):
+        st.markdown("#### ⚖️ BMI Assessment")
+        weight = st.number_input("Weight (kg)", min_value=15.0, max_value=250.0, value=68.0, step=0.5)
+        height = st.number_input("Height (cm)", min_value=70.0, max_value=240.0, value=172.0, step=1.0)
 
-        if st.button("Calculate BMI", use_container_width=True):
-            bmi = weight / ((height / 100) ** 2)
-            if bmi < 18.5:
-                status, color = "Underweight", "🔵"
-            elif 18.5 <= bmi < 24.9:
-                status, color = "Normal", "🟢"
-            elif 25 <= bmi < 29.9:
-                status, color = "Overweight", "🟠"
-            else:
-                status, color = "Obese", "🔴"
-            st.success(f"**BMI: {bmi:.1f}**\n\n{color} {status}")
+        bmi = weight / ((height / 100) ** 2)
+        healthy_min = 18.5 * ((height / 100) ** 2)
+        healthy_max = 24.9 * ((height / 100) ** 2)
 
-    # 💬 Chat Controls
-    with st.container(border=True, key="chat_controls_card"):
-        st.markdown("#### 💬 Chat Controls")
-        col_undo, col_clear = st.columns(2)
+        if bmi < 18.5:
+            status, color, alert_type = "Underweight", "#38bdf8", "info"
+        elif 18.5 <= bmi < 24.9:
+            status, color, alert_type = "Healthy Weight", "#4ade80", "success"
+        elif 25 <= bmi < 29.9:
+            status, color, alert_type = "Overweight", "#fbbf24", "warning"
+        else:
+            status, color = "Obese Range", "#f87171"
+            alert_type = "error"
 
-        if col_undo.button(
-            "⏪ Undo Last", help="Remove your last message", use_container_width=True
-        ):
-            if "messages" in st.session_state and len(st.session_state.messages) > 1:
-                st.session_state.messages = st.session_state.messages[:-2]
-                st.rerun()
+        st.markdown(
+            f"""
+            <div style='background: rgba(255,255,255,0.04); border-radius: 10px; padding: 12px; margin-top: 8px;'>
+                <div style='font-size: 0.85rem; color: #94a3b8;'>Current Score:</div>
+                <div style='font-size: 1.4rem; font-weight: 700; color: {color};'>{bmi:.1f} • {status}</div>
+                <div style='font-size: 0.8rem; color: #cbd5e1; margin-top: 4px;'>
+                    Ideal weight: <b>{healthy_min:.1f} - {healthy_max:.1f} kg</b>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        if col_clear.button(
-            "🗑️ Clear All", help="Start a fresh chat", use_container_width=True
-        ):
-            st.session_state.messages = []
-            st.rerun()
+    # Daily Health Tip Widget
+    with st.container(border=True):
+        tip = get_daily_tip(active_api_key)
+        st.markdown("#### 🍎 Daily Wellness Insight")
+        st.markdown(
+            f"""
+            <div style='
+                background: rgba(30, 176, 191, 0.12);
+                border-left: 4px solid #1eb0bf;
+                border-radius: 8px;
+                padding: 10px 14px;
+                font-size: 0.9rem;
+                color: #e2e8f0;
+                line-height: 1.5;
+            '>
+                💡 {html.escape(tip)}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-# ------------------------------------------
+
+# ==========================================
 # 💡 RIGHT COLUMN: Wellness Hub
-# ------------------------------------------
+# ==========================================
 with right_col:
     st.markdown("### 💡 Wellness Hub")
 
+    # Local Doctor Finder Setup
     if "user_location" not in st.session_state:
-        st.session_state.user_location = ""
-        st.session_state.location_allowed = False
+        st.session_state["user_location"] = ""
+        st.session_state["location_allowed"] = False
 
-    with st.container(border=True, key="location_card"):
-        st.markdown("#### 📍 Local Doctor Finder")
+    with st.container(border=True):
+        st.markdown("#### 📍 Clinic & Doctor Finder")
 
-        if not st.session_state.location_allowed or not st.session_state.user_location:
+        if not st.session_state["location_allowed"] or not st.session_state["user_location"]:
             st.markdown(
-                "<p style='font-size: 0.9rem; margin-bottom: 8px; color: #cbd5e1;'>Enable location detection to find specialized doctors near you.</p>",
+                "<p style='font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px;'>"
+                "Tailor doctor listings to your exact area."
+                "</p>",
                 unsafe_allow_html=True,
             )
 
             if st.button("🌐 Auto-Detect via IP", use_container_width=True):
-                with st.spinner("Locating..."):
+                with st.spinner("Detecting locality..."):
                     detected = detect_ip_location()
-                    st.session_state.user_location = detected
-                    st.session_state.location_allowed = True
+                    st.session_state["user_location"] = detected
+                    st.session_state["location_allowed"] = True
                     st.rerun()
 
-            st.caption("ℹ️ *Auto-detect uses IP address. It may show the cloud server's location (e.g. Oregon) if accessed via a VPN or proxy. If so, please type your location manually below.*")
-
             manual_loc = st.text_input(
-                "Or type your location manually:",
-                placeholder="e.g., Delhi, India",
+                "Or specify city / area:",
+                placeholder="e.g. Bandra, Mumbai",
                 key="manual_loc_input",
             )
             if manual_loc:
-                st.session_state.user_location = manual_loc
-                st.session_state.location_allowed = True
+                st.session_state["user_location"] = manual_loc.strip()
+                st.session_state["location_allowed"] = True
                 st.rerun()
         else:
             st.markdown(
-                f"""<div style='padding: 2px 0;'>
-                    <p style='margin: 0; font-size: 0.9rem; color: #cbd5e1;'>📍 Recommendations tailored for:</p>
-                    <p style='margin: 4px 0 12px 0; font-size: 1.05rem; font-weight: bold; color: #89f7fe;'>{html.escape(st.session_state.user_location)}</p>
-                </div>""",
+                f"""
+                <div style='padding: 4px 0 10px 0;'>
+                    <div style='font-size: 0.8rem; color: #94a3b8;'>Target Search Area:</div>
+                    <div style='font-size: 1rem; font-weight: 700; color: #89f7fe;'>
+                        📍 {html.escape(st.session_state['user_location'])}
+                    </div>
+                </div>
+                """,
                 unsafe_allow_html=True,
             )
             if st.button("✏️ Change Location", use_container_width=True):
-                st.session_state.user_location = ""
-                st.session_state.location_allowed = False
+                st.session_state["user_location"] = ""
+                st.session_state["location_allowed"] = False
                 st.rerun()
 
+    # Hydration Tracker Widget
     if "water_litres" not in st.session_state:
-        st.session_state.water_litres = 0.0
+        st.session_state["water_litres"] = 0.0
 
-    with st.container(border=True, key="water_tracker_card"):
-        st.markdown("#### 💧 Water Tracker")
+    with st.container(border=True):
+        st.markdown("#### 💧 Hydration Tracker")
+        target_litres = 2.5
+        current_litres = st.session_state["water_litres"]
+        percentage = min(current_litres / target_litres, 1.0)
 
-        progress_val = min(st.session_state.water_litres / 2.0, 1.0)
-        st.progress(
-            progress_val, text=f"{st.session_state.water_litres:.2f} / 2.0 Litres"
-        )
+        st.progress(percentage, text=f"{current_litres:.2f} / {target_litres:.1f} Litres ({int(percentage * 100)}%)")
 
-        col1, col2, col3 = st.columns(3)
-        if col1.button("➕ Drink", help="Add 0.25L", use_container_width=True):
-            if st.session_state.water_litres < 2.0:
-                st.session_state.water_litres = round(
-                    st.session_state.water_litres + 0.25, 2
-                )
-                st.rerun()
-        if col2.button("➖ Undo", help="Remove 0.25L", use_container_width=True):
-            if st.session_state.water_litres >= 0.25:
-                st.session_state.water_litres = round(
-                    st.session_state.water_litres - 0.25, 2
-                )
-                st.rerun()
-        if col3.button("🔄 Reset", use_container_width=True):
-            st.session_state.water_litres = 0.0
+        col_w1, col_w2, col_w3 = st.columns(3)
+        if col_w1.button("🥤 +250ml", use_container_width=True):
+            st.session_state["water_litres"] = round(current_litres + 0.25, 2)
+            st.rerun()
+        if col_w2.button("🍶 +500ml", use_container_width=True):
+            st.session_state["water_litres"] = round(current_litres + 0.50, 2)
+            st.rerun()
+        if col_w3.button("🔄 Reset", use_container_width=True):
+            st.session_state["water_litres"] = 0.0
             st.rerun()
 
-    with st.container(border=True, key="daily_tip_card"):
-        tip = get_daily_tip()
-        st.markdown(
-            f"""<div style="padding: 4px 0 8px 0;">
-                <p style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: bold; color: #f1f1f1;">
-                    🍎 Daily Tip
-                </p>
-                <div style="
-                    background: rgba(30, 176, 191, 0.15);
-                    border: 1px solid rgba(137, 247, 254, 0.2);
-                    border-left: 4px solid #89f7fe;
-                    border-radius: 8px;
-                    padding: 12px 16px;
-                    margin: 0 0 4px 0;
-                    color: #e8f4f8;
-                    font-size: 0.95rem;
-                    line-height: 1.6;
-                    word-wrap: break-word;
-                    overflow-wrap: break-word;
-                    max-height: 180px;
-                    overflow-y: auto;
-                ">💡 {html.escape(tip)}</div>
-            </div>""",
-            unsafe_allow_html=True,
-        )
+        if current_litres >= target_litres:
+            st.caption("🎉 Hydration target accomplished today!")
 
-# ------------------------------------------
-# 🤖 MAIN COLUMN: The Chatbot Interface
-# ------------------------------------------
+
+# ==========================================
+# 🤖 MAIN COLUMN: Chatbot & Clinical Triage
+# ==========================================
 with main_col:
-    AI_AVATAR = "🤖"
-
-    col_img, col_title = st.columns([1, 4])
-    with col_img:
-        st.markdown(
-            f"<div style='font-size: 60px; text-align: center; margin-top: 10px;'>{AI_AVATAR}</div>",
-            unsafe_allow_html=True,
-        )
-    with col_title:
-        st.title("Health Assistant")
-
-    st.info(
-        "👋 Hi! Tell me what's bothering you, or ask me a health question — I’ll help you out 💙"
+    st.markdown(
+        """
+        <div style='display: flex; align-items: center; gap: 14px; margin-bottom: 0.5rem;'>
+            <span style='font-size: 2.5rem;'>🩺</span>
+            <div>
+                <h2 style='margin: 0; font-weight: 800; color: #f8fafc; letter-spacing: -0.5px;'>
+                    Health Assistant AI
+                </h2>
+                <div style='font-size: 0.9rem; color: #94a3b8;'>
+                    Intelligent Clinical Triage • Home Remedies • Verified Local Specialists
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    # Initialize messages
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+    # Emergency Disclaimer Banner
+    st.markdown(
+        """
+        <div class="emergency-banner">
+            <span style="font-size: 1.2rem;">🚨</span>
+            <div>
+                <strong>Medical Emergency?</strong> If you have severe chest pain, shortness of breath, sudden numbness, or heavy bleeding, call <strong>112</strong> (India/EU) or <strong>911</strong> (US) immediately.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    # Input processing right at the top
-    prompt = st.chat_input("Describe your symptoms or ask a health question...")
-
-    # We need to capture the state of messages *before* rendering, so history doesn't duplicate the new response
-    history_to_render = list(st.session_state.messages)
-
-    if prompt:
-        # Save user message to state
-        st.session_state.messages.append(
-            {"role": "user", "content": prompt, "is_card": False}
+    # API Key warning if missing
+    if not active_api_key:
+        st.info(
+            "👋 **Welcome!** Please enter a free Groq API Key in the left sidebar to activate AI medical triage.",
+            icon="🔑",
         )
 
-        # 1. Render user message at the very top immediately
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(prompt)
+    # Quick Suggestion Prompts
+    st.markdown("<small style='color: #94a3b8; font-weight: 600;'>Suggested Inquiries:</small>", unsafe_allow_html=True)
+    q_col1, q_col2, q_col3 = st.columns(3)
 
-        # 2. Render AI response right below the user message, with spinner
-        with st.chat_message("assistant", avatar=AI_AVATAR):
-            with st.spinner("Analyzing..."):
-                try:
-                    active_location = (
-                        st.session_state.get("user_location", "")
-                        or "Kolkata, West Bengal, India"
-                    )
-                    data = health_ai.get_structured_response(
-                        user_prompt=prompt,
-                        chat_history=history_to_render,
-                        user_location=active_location,
-                    )
+    suggested_prompt = None
+    if q_col1.button("🤕 Severe Migraine Relief", use_container_width=True):
+        suggested_prompt = "I have a throbbing migraine headache with sensitivity to light. What remedies help and should I see a neurologist?"
+    if q_col2.button("💊 Paracetamol with Ibuprofen?", use_container_width=True):
+        suggested_prompt = "Can I safely alternate paracetamol and ibuprofen for fever, and what is the proper timing?"
+    if q_col3.button("🌿 Acidity & Acid Reflux Care", use_container_width=True):
+        suggested_prompt = "I am suffering from acute acid reflux and burning sensation in my chest after eating. What home remedies help immediately?"
 
-                    if not data.get("is_valid_query", True):
-                        output = data.get(
-                            "error_message",
-                            "I didn't quite understand that. Could you clarify?",
+    # Initialize Chat History
+    if "messages" not in st.session_state:
+        st.session_state["messages"] = []
+
+    # Chat input
+    user_input = st.chat_input("Describe your symptoms or ask a health question...")
+
+    # Choose active prompt
+    active_prompt = user_input or suggested_prompt
+
+    if active_prompt:
+        if not active_api_key or not health_ai:
+            st.error("Please provide a valid Groq API Key in the left sidebar to consult the AI assistant.")
+        else:
+            # Append and render user message
+            st.session_state["messages"].append({"role": "user", "content": active_prompt})
+
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(active_prompt)
+
+            # Generate AI Triage Response
+            with st.chat_message("assistant", avatar="🩺"):
+                with st.spinner("Analyzing symptoms & scanning local specialists..."):
+                    try:
+                        active_loc = (
+                            st.session_state.get("user_location", "")
+                            or "Kolkata, West Bengal, India"
                         )
-                        is_card = False
-                    else:
-                        is_card = True
-                        output = ""
+                        data = health_ai.get_structured_response(
+                            user_prompt=active_prompt,
+                            chat_history=st.session_state["messages"][:-1],
+                            user_location=active_loc,
+                        )
 
-                        if data.get("query_type") == "general_health":
-                            direct_answer = data.get("direct_answer", "")
-                            advice = data.get("advice", "")
-                            if direct_answer:
-                                output += f"🩺 **Health Answer:**\n{direct_answer}\n"
-                            if advice:
-                                output += f"\n💡 **Additional Advice:**\n{advice}\n"
-
+                        if not data.get("is_valid_query", True):
+                            response_text = data.get(
+                                "error_message",
+                                "I can only assist with health, medical, and wellness questions.",
+                            )
+                            st.markdown(response_text)
+                            st.session_state["messages"].append(
+                                {"role": "assistant", "content": response_text}
+                            )
                         else:
+                            content_blocks = []
+
+                            # Direct Answer
+                            direct_ans = data.get("direct_answer", "")
+                            if direct_ans:
+                                content_blocks.append(f"### 🩺 Clinical Overview\n{direct_ans}")
+
+                            # Home Remedies
                             remedies = data.get("remedies", [])
                             if remedies:
-                                remedies_text = "\n".join(
-                                    [f"{i}. {r}" for i, r in enumerate(remedies, 1)]
-                                )
-                                output += f"🌿 **Home Remedies & Recovery Steps:**\n{remedies_text}\n"
+                                rem_list = "\n".join([f"- **Step {i}:** {r}" for i, r in enumerate(remedies, 1)])
+                                content_blocks.append(f"### 🌿 Recommended Actions & Remedies\n{rem_list}")
 
+                            # Preventive Advice
                             advice = data.get("advice", "")
                             if advice:
-                                output += f"\n💡 **General Health Advice:**\n{advice}\n"
+                                content_blocks.append(f"### 💡 Medical Guidance & Red Flags\n{advice}")
 
+                            # Local Doctors
                             doctors = data.get("doctors", [])
                             if doctors:
-                                # Sort: most complete profiles first
-                                doctors = sorted(
+                                sorted_doctors = sorted(
                                     doctors,
-                                    key=lambda d: doctor_completeness_score(d),
+                                    key=lambda d: doctor_completeness_score(d if isinstance(d, dict) else d.model_dump()),
                                     reverse=True,
                                 )
-                                output += "\n👨‍⚕️ **Recommended Doctors Near You:**\n\n"
-                                for doc in doctors:
+                                doc_text = f"### 👨‍⚕️ Verified Specialists Near {active_loc}\n\n"
+                                for doc in sorted_doctors:
+                                    if hasattr(doc, "model_dump"):
+                                        doc = doc.model_dump()
                                     stars = get_stars(doc.get("rating", ""))
-
                                     phone_val = doc.get("phone", "N/A")
                                     link_val = doc.get("link", "")
 
                                     if link_val:
-                                        if (
-                                            "visit website" in phone_val.lower()
-                                            or "website" in phone_val.lower()
-                                        ):
-                                            phone_display = f"[{phone_val}]({link_val})"
-                                        else:
-                                            phone_display = f"{phone_val} | [Visit Website]({link_val})"
+                                        phone_display = f"{phone_val} • [Visit Profile / Booking]({link_val})"
                                     else:
                                         phone_display = phone_val
 
-                                    output += (
-                                        f"🧑‍⚕️ **{doc.get('name', 'Unknown')}**\n"
-                                        f"📍 {doc.get('location', 'Unknown')}\n"
-                                        f"📞 {phone_display}\n"
-                                        f"⭐ {stars}\n\n---\n\n"
+                                    doc_text += (
+                                        f"**🧑‍⚕️ {doc.get('name', 'Specialist')}**\n\n"
+                                        f"- 📍 **Address/Area:** {doc.get('location', 'Area nearby')}\n"
+                                        f"- 📞 **Contact:** {phone_display}\n"
+                                        f"- ⭐ **Rating:** {stars}\n\n---\n"
                                     )
+                                content_blocks.append(doc_text)
 
-                            output += "\n*Disclaimer: I am an AI, not a doctor. Please consult a professional for medical emergencies.*"
+                            content_blocks.append(
+                                "\n*Disclaimer: This guidance is provided by an AI triage assistant and does not substitute for a formal diagnosis or emergency medical care.*"
+                            )
 
-                    if is_card:
-                        st.markdown(
-                            f'<div class="playful-card">{output}</div>',
-                            unsafe_allow_html=True,
+                            full_response = "\n\n".join(content_blocks)
+                            st.markdown(
+                                f'<div class="chat-response-card">{full_response}</div>',
+                                unsafe_allow_html=True,
+                            )
+
+                            st.session_state["messages"].append(
+                                {"role": "assistant", "content": full_response, "is_card": True}
+                            )
+
+                    except Exception as e:
+                        err_msg = f"Unable to process consultation at this moment: {e}"
+                        st.error(err_msg)
+                        st.session_state["messages"].append(
+                            {"role": "assistant", "content": err_msg}
                         )
-                    else:
-                        st.markdown(output)
 
-                    st.session_state.messages.append(
-                        {"role": "assistant", "content": output, "is_card": is_card}
-                    )
+    # Render previous conversation history
+    # If a prompt was just submitted, exclude the last turn since it was already displayed above
+    rendered_history = st.session_state.get("messages", [])
+    if active_prompt and len(rendered_history) >= 2:
+        history_to_display = rendered_history[:-2]
+    else:
+        history_to_display = rendered_history
 
-                except Exception as e:
-                    st.error(f"System Error: {e}")
-                    st.session_state.messages.append(
-                        {
-                            "role": "assistant",
-                            "content": "Something went wrong. Try again.",
-                            "is_card": False,
-                        }
-                    )
-
-    # Display historical chat history in reverse (NEWEST FIRST)
-    # We group messages into conversational turns so the user's prompt appears above the AI's response.
-    turns = []
-    current_turn = []
-    for msg in history_to_render:
-        if msg["role"] == "user" and current_turn:
-            turns.append(current_turn)
-            current_turn = [msg]
-        else:
-            current_turn.append(msg)
-    if current_turn:
-        turns.append(current_turn)
-
-    for turn in reversed(turns):
-        for msg in turn:
-            avatar = AI_AVATAR if msg["role"] == "assistant" else "👤"
-
-            with st.chat_message(msg["role"], avatar=avatar):
-                if msg.get("is_card"):
-                    st.markdown(
-                        f'<div class="playful-card">{msg["content"]}</div>',
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(msg["content"])
+    for msg in reversed(history_to_display):
+        avatar = "🩺" if msg.get("role") == "assistant" else "👤"
+        with st.chat_message(msg.get("role"), avatar=avatar):
+            if msg.get("is_card"):
+                st.markdown(
+                    f'<div class="chat-response-card">{msg.get("content")}</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(msg.get("content"))

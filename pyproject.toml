@@ -1,11 +1,18 @@
 [project]
 name = "health-assistant-chatbot"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "AI-powered medical triage and health assistant chatbot with live doctor search."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 dependencies = [
-    "streamlit>=1.50.0",
+    "streamlit>=1.35.0",
+    "pydantic>=2.7.0",
+    "pydantic-ai>=2.0.0",
     "groq>=0.10.0",
     "python-dotenv>=1.0.0",
+    "ddgs>=9.0.0",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
