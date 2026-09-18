@@ -22,6 +22,7 @@ def test_doctor_model():
     assert doc.name == "Dr. Jane Doe"
     assert doc.rating == "4.8/5"
     assert doc.phone == "+91 9876543210"
+    assert "Verified" in doc.verification_status
 
 
 def test_health_response_schema():

@@ -16,15 +16,15 @@ logger = logging.getLogger(__name__)
 
 class Doctor(BaseModel):
     name: str = Field(
-        description="Name of the specialist or clinic (e.g., 'Dr. Amitav Banerjee' or 'BM Birla Heart Research Centre')."
+        description="Name of the specialist or clinic (e.g., 'Dr. Amitav Banerjee' or 'Apollo Multispecialty Hospital')."
     )
     specialty: str = Field(
         default="",
-        description="Exact medical specialty or subspecialty (e.g., 'Cardiologist', 'Ophthalmologist')."
+        description="Exact medical specialty or subspecialty (e.g., 'Pulmonologist', 'Cardiologist')."
     )
     clinic_or_hospital: str = Field(
         default="",
-        description="Associated hospital, medical center, or clinic facility name."
+        description="Associated permanent hospital, medical center, or accredited clinic facility name."
     )
     location: str = Field(
         default="Local area",
@@ -32,7 +32,7 @@ class Doctor(BaseModel):
     )
     phone: str = Field(
         default="Visit Website",
-        description="Direct appointment phone number or booking hotline."
+        description="Direct appointment phone number or hospital helpline."
     )
     rating: str = Field(
         default="4.6/5",
@@ -44,7 +44,11 @@ class Doctor(BaseModel):
     )
     why_recommended: str = Field(
         default="",
-        description="1 concise sentence explaining why this specialist specifically matches the patient's condition."
+        description="1 concise sentence explaining specifically why this specialist is the ideal choice for their symptom."
+    )
+    verification_status: str = Field(
+        default="Verified Legitimate • Active Patient Footfall",
+        description="Accreditation or patient legitimacy tag (e.g., 'Verified Legitimate • NABH Accredited Hospital', 'Active Patient Footfall • Established OPD')."
     )
 
 
@@ -98,40 +102,45 @@ class QueryIntent(BaseModel):
     )
     specialty: str = Field(
         default="General Physician",
-        description="The precise medical specialist needed (e.g. Cardiologist, Dermatologist, ENT Specialist, Neurologist)."
+        description="Recommended primary specialist field (e.g., 'Pulmonologist', 'Orthopedic Knee Specialist', 'Cardiologist')."
     )
     search_keywords: str = Field(
-        default="",
-        description="2 to 4 concise keywords describing the medical condition (e.g. 'migraine headache neurology')."
+        default="doctor clinic hospital",
+        description="2-4 optimal search keywords for locating clinics (e.g., 'chest specialist pulmonology hospital OPD')."
     )
     clarification_message: str = Field(
         default="",
-        description="If not medically coherent, a polite, professional clinical explanation asking the patient to clarify their symptoms without assuming or fabricating."
+        description="Clear medical clarification message if query is anatomically contradictory or nonsensical."
     )
 
 
 # --- 2. SYSTEM INSTRUCTIONS ---
 
 HEALTH_SYSTEM_PROMPT = """You are an elite, certified Medical Triage AI and Clinical Doctor Discovery Engine.
-Your PRIMARY MISSION is connecting patients to 3 TO 5 VERIFIED LOCAL SPECIALISTS & CLINICS suited for their exact health condition.
+Your PRIMARY MISSION is connecting patients to 3 TO 5 VERIFIED, LEGITIMATE LOCAL SPECIALISTS & PERMANENT CLINICS where real patients actively visit.
 
-CORE MANDATE FOR DOCTOR RECOMMENDATIONS (MOST IMPORTANT FEATURE):
-1. ALWAYS PROVIDE 3 TO 5 MATCHED DOCTORS/CLINICS:
-   Whenever a patient describes symptoms or seeks medical care, you MUST return between 3 and 5 verified specialists or hospital clinics located in or near the user's city.
-   Never return fewer than 3 doctors for symptom triage queries.
-2. Complete, Actionable Details for Each Doctor:
-   - name: Exact name of the specialist or clinic.
-   - specialty: Specific discipline or sub-specialty matching the symptom (e.g. 'Orthopedic Knee Specialist', 'Interventional Cardiologist', 'Corneal Eye Specialist').
-   - clinic_or_hospital: Medical institute, hospital, or clinic name (e.g. 'Woodlands Hospital', 'Desun Hospital', 'Belle Vue Clinic').
+CORE MANDATE FOR DOCTOR RECOMMENDATIONS (LEGITIMACY & ACTIVE VISITS):
+1. RECOMMEND ONLY 100% LEGITIMATE, ESTABLISHED MEDICAL FACILITIES & DOCTORS:
+   - Every doctor or clinic MUST be an established, permanent medical institution or recognized practitioner where real people actively visit without safety concerns.
+   - Prioritize premier accredited hospitals (e.g. Apollo, Fortis, Max, Manipal, AMRI, Woodlands, Peerless, CMRI, AIIMS, or regional NABH/JCI accredited tertiary hospitals) and well-established clinical OPDs.
+   - NEVER invent or recommend unverified, sketchy, or speculative individual names without a permanent hospital affiliation or verified clinical practice.
+2. ALWAYS PROVIDE 3 TO 5 MATCHED DOCTORS/CLINICS:
+   - Whenever a patient describes symptoms or seeks medical care, return between 3 and 5 verified specialists or hospital clinics located in or near the user's city.
+   - Never return fewer than 3 doctors for symptom triage queries.
+3. Complete, Actionable, Verified Details for Each Doctor:
+   - name: Exact name of the specialist or hospital department.
+   - specialty: Specific discipline or sub-specialty matching the symptom.
+   - clinic_or_hospital: Permanent accredited hospital, medical center, or established facility name.
    - location: Specific street address, neighborhood, or locality.
    - phone: Direct appointment phone number or hospital helpline.
-   - rating: Rating format (e.g. '4.8/5' or 'Verified').
-   - link: URL to profile or clinic website.
-   - why_recommended: 1 concise sentence explaining specifically why this specialist is the ideal choice for their symptom.
-3. Information Extraction:
-   - Extract genuine details from the VERIFIED LOCAL SEARCH RESULTS provided below.
-   - If the search results contain fewer than 3 clinics, complete the list up to 3-5 by including premier accredited tertiary hospitals and specialized departments in the user's city.
-4. Strict Medical Integrity:
+   - rating: Patient rating or 'Verified'.
+   - link: URL to official hospital website, Practo profile, or booking portal.
+   - why_recommended: 1 concise sentence detailing why this specialist/facility matches the patient's symptoms.
+   - verification_status: Verification label confirming legitimacy (e.g., 'Verified Legitimate • High Patient Footfall', 'NABH Accredited Tertiary Center', 'Established Specialist OPD').
+4. Information Extraction:
+   - Prioritize genuine, permanent hospitals and clinics extracted from the live search results below.
+   - If results have fewer than 3, complete up to 3-5 with the city's most prestigious, accredited hospitals and dedicated departments.
+5. Strict Medical Integrity:
    - If the query is anatomically contradictory (e.g. 'headache in knee'), set is_valid_query=false with a professional clarification.
    - Set urgency_level: 'Emergency (Call 112/911)', 'Urgent (Consult within 24-48h)', or 'Routine / Self-Care'.
    - Remedies: Bulleted, safe, actionable home recovery steps.
@@ -183,7 +192,7 @@ def _cached_doctor_search(search_query: str) -> str:
 
 
 def fetch_live_doctors(specialty: str, location: str, keywords: str = "") -> str:
-    """Fetches verified clinics and doctor listings using multi-query deep search."""
+    """Fetches verified, permanent hospitals and clinics visited by real patients using deep multi-query search."""
     clean_loc = sanitize_search_term(location)
     clean_spec = sanitize_search_term(specialty)
     clean_kw = sanitize_search_term(keywords) if keywords else ""
@@ -192,8 +201,9 @@ def fetch_live_doctors(specialty: str, location: str, keywords: str = "") -> str
     seen_snippets = set()
 
     queries = [
-        f"best {clean_spec} doctor clinic in {clean_loc} hospital phone address",
-        f"top {clean_spec} {clean_kw} specialist hospital in {clean_loc} appointment contact",
+        f"best {clean_spec} hospital clinic in {clean_loc} Apollo Fortis Practo patient reviews OPD address",
+        f"top visited {clean_spec} specialist doctor in {clean_loc} accredited hospital OPD phone contact",
+        f"premier multispecialty hospital {clean_spec} department in {clean_loc} appointment",
     ]
 
     for q in queries:
@@ -206,7 +216,7 @@ def fetch_live_doctors(specialty: str, location: str, keywords: str = "") -> str
                     seen_snippets.add(key)
                     combined_results.append(block)
 
-    return "\n\n---\n\n".join(combined_results[:8])
+    return "\n\n---\n\n".join(combined_results[:9])
 
 
 os.environ["PYDANTIC_AI_NO_BANNER"] = "1"

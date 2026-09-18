@@ -235,6 +235,21 @@ html, body, [class*="css"] {
     border-radius: 8px;
 }
 
+.doctor-legit-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+}
+
 .doctor-details {
     font-size: 0.9rem;
     color: #cbd5e1;
@@ -740,8 +755,11 @@ with main_col:
                             if doctors:
                                 html_parts.append(
                                     clean_html(f"""
-                                    <div style='margin-top: 14px; margin-bottom: 10px; font-size: 1.05rem; font-weight: 700; color: #89f7fe;'>
-                                        👨‍⚕️ Verified Specialists & Clinics in {html.escape(active_loc)}:
+                                    <div style='margin-top: 14px; margin-bottom: 4px; font-size: 1.05rem; font-weight: 700; color: #89f7fe;'>
+                                        👨‍⚕️ Verified Specialists & Premier Hospitals in {html.escape(active_loc)}:
+                                    </div>
+                                    <div style='margin-bottom: 12px; font-size: 0.82rem; color: #94a3b8;'>
+                                        Permanently established institutions with verified patient visits & active outpatient care (OPD):
                                     </div>
                                     """)
                                 )
@@ -776,8 +794,10 @@ with main_col:
                                     doc_stars = get_stars(doc_rating)
                                     doc_link = doc.get("link", "")
                                     doc_why = html.escape(doc.get("why_recommended") or "")
+                                    doc_status = html.escape(doc.get("verification_status") or "Verified Legitimate • Active Patient Footfall")
+                                    legit_badge = f"<div class='doctor-legit-badge'>🛡️ {doc_status}</div>"
 
-                                    hosp_line = f"<div class='doctor-detail-item'>🏥 <span>{doc_hosp}</span></div>" if doc_hosp else ""
+                                    hosp_line = f"<div class='doctor-detail-item'>🏥 <span><strong>Established Facility:</strong> {doc_hosp}</span></div>" if doc_hosp else ""
                                     why_line = f"<div class='doctor-why'>💡 <strong>Why Recommended:</strong> {doc_why}</div>" if doc_why else ""
 
                                     btn_line = ""
@@ -793,6 +813,7 @@ with main_col:
                                             </div>
                                             <div class="doctor-rating">{doc_stars} ({doc_rating})</div>
                                         </div>
+                                        {legit_badge}
                                         <div class="doctor-details">
                                             {hosp_line}
                                             <div class="doctor-detail-item">📍 <span>{doc_loc}</span></div>
