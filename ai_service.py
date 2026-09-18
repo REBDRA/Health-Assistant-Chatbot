@@ -272,19 +272,6 @@ class HealthAIFacade:
             system_prompt=HEALTH_SYSTEM_PROMPT,
         )
 
-    def validate_key(self) -> Tuple[bool, str]:
-        """Validates the Groq API key with a minimal request."""
-        try:
-            test_agent = Agent(self.fast_model, output_type=str)
-            test_agent.run_sync("ping")
-            return True, "API Key is valid and active."
-        except Exception as e:
-            msg = str(e)
-            if "invalid_api_key" in msg.lower() or "401" in msg:
-                return False, "Invalid Groq API key. Please check your credentials."
-            if "429" in msg or "rate_limit" in msg.lower():
-                return False, "Groq API rate limit reached. Please wait a moment."
-            return False, f"Connection error: {msg[:100]}"
 
     def _retry_run(self, agent: Agent, prompt: str, retries: int = 2):
         """Runs an agent with backoff retry on transient errors."""

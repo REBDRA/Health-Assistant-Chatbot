@@ -1,16 +1,16 @@
 import html
 import json
 import os
+import textwrap
 import urllib.request
 from datetime import date
 from typing import Optional
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
-import ai_service
 from ai_service import HealthAIFacade
 
-# 1. Streamlit Page Configuration
+# 1. Streamlit Page Configuration (Must be first Streamlit command)
 st.set_page_config(
     page_title="Health Assistant AI",
     page_icon="🩺",
@@ -19,9 +19,6 @@ st.set_page_config(
 )
 
 load_dotenv()
-
-
-import textwrap
 
 
 # --- HELPER FUNCTIONS ---
@@ -165,17 +162,6 @@ html, body, [class*="css"] {
     padding-bottom: 3.5rem;
 }
 
-/* Glassmorphism Cards */
-.glass-card {
-    background: rgba(19, 35, 46, 0.72);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(137, 247, 254, 0.22);
-    border-radius: 16px;
-    padding: 1.25rem;
-    margin-bottom: 1.2rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
 
 /* Chat Bubbles */
 .chat-response-card {
