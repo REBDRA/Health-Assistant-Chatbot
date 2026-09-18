@@ -675,6 +675,15 @@ with main_col:
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
+    # 1. Render all conversation history chronologically (Question directly above Answer)
+    for msg in st.session_state["messages"]:
+        avatar = "🩺" if msg.get("role") == "assistant" else "👤"
+        with st.chat_message(msg.get("role"), avatar=avatar):
+            if msg.get("is_card"):
+                st.markdown(msg.get("content"), unsafe_allow_html=True)
+            else:
+                st.markdown(msg.get("content"))
+
     # Chat input
     user_input = st.chat_input("Describe your symptoms or ask a health question...")
 
@@ -888,17 +897,5 @@ with main_col:
                                 {"role": "assistant", "content": err_msg}
                             )
 
-    # Render previous conversation history
-    rendered_history = st.session_state.get("messages", [])
-    if active_prompt and len(rendered_history) >= 2:
-        history_to_display = rendered_history[:-2]
-    else:
-        history_to_display = rendered_history
-
-    for msg in reversed(history_to_display):
-        avatar = "🩺" if msg.get("role") == "assistant" else "👤"
-        with st.chat_message(msg.get("role"), avatar=avatar):
-            if msg.get("is_card"):
-                st.markdown(msg.get("content"), unsafe_allow_html=True)
-            else:
-                st.markdown(msg.get("content"))
+            # Refresh state so all messages render in natural chronological order
+            st.rerun()

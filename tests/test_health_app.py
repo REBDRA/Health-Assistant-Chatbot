@@ -1,5 +1,12 @@
 import pytest
-from ai_service import Doctor, HealthResponse, QueryIntent, sanitize_search_term
+from ai_service import (
+    Doctor,
+    HealthResponse,
+    QueryIntent,
+    sanitize_search_term,
+    get_verified_directory_doctors,
+    sanitize_doctor_url,
+)
 from app import get_stars, doctor_completeness_score, clean_html
 
 
@@ -74,3 +81,27 @@ def test_clean_html_strips_leading_whitespace():
         assert not line.startswith(" "), f"Line still has leading space: {line}"
     assert "<div class=\"doctor-card\">" in cleaned
     assert "📍 Location" in cleaned
+
+
+def test_verified_directory_pulmonology():
+    docs = get_verified_directory_doctors("Pulmonologist", "Kolkata, West Bengal")
+    assert len(docs) >= 3
+    # Check that Apollo and Fortis are in the permanent verified list
+    names = [d.name for d in docs]
+    assert any("Apollo" in n for n in names)
+    assert any("Fortis" in n for n in names)
+    for d in docs:
+        assert d.phone != "Visit Website"
+        assert d.link.startswith("http")
+        assert "Verified" in d.verification_status
+
+
+def test_sanitize_doctor_url():
+    # Approved hospital domain should be preserved
+    approved_url = "https://www.apollohospitals.com/kolkata/pulmonology"
+    assert sanitize_doctor_url(approved_url, "Apollo Hospital", "Pulmonologist", "Kolkata") == approved_url
+
+    # Random spam/blog link should be replaced with legitimate official hospital link
+    spam_url = "https://random-shady-blog.com/top-10-doctors?id=99"
+    sanitized = sanitize_doctor_url(spam_url, "Fortis Hospital Anandapur", "Pulmonologist", "Kolkata")
+    assert sanitized == "https://www.fortishealthcare.com"
