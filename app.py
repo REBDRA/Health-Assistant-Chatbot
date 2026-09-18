@@ -378,6 +378,33 @@ div[data-testid="stButton"] button {
     pointer-events: none;
     text-align: center;
 }
+
+/* 💎 TOP FIXED / ANCHORED SEARCH INPUT 💎 */
+div[data-testid="stBottom"] {
+    position: relative !important;
+    bottom: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+div[data-testid="stChatInputContainer"] {
+    position: relative !important;
+    bottom: auto !important;
+    background: transparent !important;
+}
+
+div[data-testid="stChatInput"] {
+    position: relative !important;
+    bottom: auto !important;
+    z-index: 999 !important;
+    background: rgba(15, 32, 39, 0.85) !important;
+    backdrop-filter: blur(15px) !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(137, 247, 254, 0.45) !important;
+    box-shadow: 0px 8px 30px rgba(0, 0, 0, 0.4) !important;
+    margin-top: 10px !important;
+    margin-bottom: 22px !important;
+}
 </style>
 
 <div class="custom-footer">
@@ -675,32 +702,26 @@ with main_col:
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
-    # 1. Render all conversation history chronologically (Question directly above Answer)
-    for msg in st.session_state["messages"]:
-        avatar = "🩺" if msg.get("role") == "assistant" else "👤"
-        with st.chat_message(msg.get("role"), avatar=avatar):
-            if msg.get("is_card"):
-                st.markdown(msg.get("content"), unsafe_allow_html=True)
-            else:
-                st.markdown(msg.get("content"))
-
-    # Chat input
+    # 💎 TOP FIXED SEARCH / CONSULTATION INPUT 💎
     user_input = st.chat_input("Describe your symptoms or ask a health question...")
 
     # Choose active prompt
     active_prompt = user_input or suggested_prompt
 
+    # Capture prior history snapshot so live submission is not duplicated
+    history_to_render = list(st.session_state["messages"])
+
     if active_prompt:
         if not active_api_key or not health_ai:
             st.error("Please provide a Groq API Key in the left sidebar to consult the AI assistant.")
         else:
-            # Append and render user message
+            # Append and render user message FIRST (Question on top)
             st.session_state["messages"].append({"role": "user", "content": active_prompt})
 
             with st.chat_message("user", avatar="👤"):
                 st.markdown(active_prompt)
 
-            # Generate AI Triage Response
+            # Generate AI Triage Response DIRECTLY BELOW user question
             with st.chat_message("assistant", avatar="🩺"):
                 with st.spinner("Analyzing symptoms & finding matched local specialists..."):
                     try:
@@ -710,7 +731,7 @@ with main_col:
                         )
                         data = health_ai.get_structured_response(
                             user_prompt=active_prompt,
-                            chat_history=st.session_state["messages"][:-1],
+                            chat_history=history_to_render,
                             user_location=active_loc,
                         )
 
@@ -816,22 +837,22 @@ with main_col:
                                     card_html = clean_html(f"""
                                     <div class="doctor-card">
                                         <div class="doctor-header">
-                                            <div>
-                                                <div class="doctor-name">{doc_name}</div>
-                                                <div class="doctor-specialty">{doc_spec}</div>
-                                            </div>
-                                            <div class="doctor-rating">{doc_stars} ({doc_rating})</div>
-                                        </div>
-                                        {legit_badge}
-                                        <div class="doctor-details">
-                                            {hosp_line}
-                                            <div class="doctor-detail-item">📍 <span>{doc_loc}</span></div>
-                                            <div class="doctor-detail-item">📞 <span><strong>Contact:</strong> {doc_phone}</span></div>
-                                            {why_line}
-                                        </div>
-                                        {btn_line}
-                                    </div>
-                                    """)
+                                             <div>
+                                                 <div class="doctor-name">{doc_name}</div>
+                                                 <div class="doctor-specialty">{doc_spec}</div>
+                                             </div>
+                                             <div class="doctor-rating">{doc_stars} ({doc_rating})</div>
+                                         </div>
+                                         {legit_badge}
+                                         <div class="doctor-details">
+                                             {hosp_line}
+                                             <div class="doctor-detail-item">📍 <span>{doc_loc}</span></div>
+                                             <div class="doctor-detail-item">📞 <span><strong>Contact:</strong> {doc_phone}</span></div>
+                                             {why_line}
+                                         </div>
+                                         {btn_line}
+                                     </div>
+                                     """)
                                     html_parts.append(card_html)
 
                             # 4. Safe Home Remedies
@@ -897,5 +918,24 @@ with main_col:
                                 {"role": "assistant", "content": err_msg}
                             )
 
-            # Refresh state so all messages render in natural chronological order
-            st.rerun()
+    # 💎 RENDER HISTORICAL CONVERSATION TURNS (NEWEST FIRST, QUESTION ON TOP OF ANSWER) 💎
+    turns = []
+    current_turn = []
+    for msg in history_to_render:
+        if msg.get("role") == "user" and current_turn:
+            turns.append(current_turn)
+            current_turn = [msg]
+        else:
+            current_turn.append(msg)
+    if current_turn:
+        turns.append(current_turn)
+
+    for turn in reversed(turns):
+        for msg in turn:
+            avatar = "🩺" if msg.get("role") == "assistant" else "👤"
+            with st.chat_message(msg.get("role"), avatar=avatar):
+                if msg.get("is_card"):
+                    st.markdown(msg.get("content"), unsafe_allow_html=True)
+                else:
+                    st.markdown(msg.get("content"))
+

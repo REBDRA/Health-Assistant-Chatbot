@@ -105,3 +105,21 @@ def test_sanitize_doctor_url():
     spam_url = "https://random-shady-blog.com/top-10-doctors?id=99"
     sanitized = sanitize_doctor_url(spam_url, "Fortis Hospital Anandapur", "Pulmonologist", "Kolkata")
     assert sanitized == "https://www.fortishealthcare.com"
+
+
+def test_pan_india_doctor_directory():
+    # Test major metro hubs
+    for city in ["Delhi", "Mumbai", "Bengaluru", "Chennai", "Hyderabad"]:
+        docs = get_verified_directory_doctors("Cardiologist", city)
+        assert len(docs) >= 2, f"Failed for {city}"
+        assert any(d.phone and d.phone != "Visit Website" for d in docs)
+        assert all("Verified" in d.verification_status for d in docs)
+
+    # Test Tier 2/3 city via adaptive generator
+    for t2_city in ["Jaipur, Rajasthan", "Siliguri, West Bengal", "Patna, Bihar", "Lucknow, Uttar Pradesh"]:
+        docs = get_verified_directory_doctors("Orthopedic Specialist", t2_city)
+        assert len(docs) >= 3, f"Failed for {t2_city}"
+        # Should include Apollo clinic network, civil medical college, and Practo verified link
+        assert any("Apollo" in d.name or "Apollo" in d.clinic_or_hospital for d in docs)
+        assert any("Medical College" in d.clinic_or_hospital for d in docs)
+        assert any("practo.com" in d.link for d in docs)
