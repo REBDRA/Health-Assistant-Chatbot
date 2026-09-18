@@ -688,9 +688,19 @@ with main_col:
                                 "error_message",
                                 "I can only assist with health, medical, and wellness questions.",
                             )
-                            st.markdown(response_text)
+                            card_html = f"""
+                            <div class="chat-response-card" style="border-left: 4px solid #f59e0b;">
+                                <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                    <span>⚠️</span> <span>Clinical Clarification Needed</span>
+                                </div>
+                                <div style="line-height: 1.6; color: #f1f5f9; font-size: 0.95rem;">
+                                    {html.escape(response_text)}
+                                </div>
+                            </div>
+                            """
+                            st.markdown(card_html, unsafe_allow_html=True)
                             st.session_state["messages"].append(
-                                {"role": "assistant", "content": response_text}
+                                {"role": "assistant", "content": card_html, "is_card": True}
                             )
                         else:
                             # Build Rich Triage Presentation

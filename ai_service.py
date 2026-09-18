@@ -89,6 +89,10 @@ class QueryIntent(BaseModel):
     is_health_related: bool = Field(
         description="True if query pertains to health, medicine, fitness, symptoms, or biology."
     )
+    is_medically_coherent: bool = Field(
+        default=True,
+        description="False if the query contains anatomically contradictory, nonsensical, or physically impossible symptom combinations (e.g., 'headache in knee', 'toothache in foot', 'broken stomach bone'). True if it describes a plausible condition, inquiry, or symptom."
+    )
     is_symptom: bool = Field(
         description="True if user describes an active physical or mental complaint requiring triage."
     )
@@ -99,6 +103,10 @@ class QueryIntent(BaseModel):
     search_keywords: str = Field(
         default="",
         description="2 to 4 concise keywords describing the medical condition (e.g. 'migraine headache neurology')."
+    )
+    clarification_message: str = Field(
+        default="",
+        description="If not medically coherent, a polite, professional clinical explanation asking the patient to clarify their symptoms without assuming or fabricating."
     )
 
 
@@ -121,7 +129,10 @@ CRITICAL INSTRUCTIONS FOR SPECIALIST & CLINIC MATCHING (CORE PURPOSE):
      - rating: 'X.X/5' or 'Verified'.
      - link: URL to profile or clinic website.
      - why_recommended: 1 concise sentence explaining specifically why this specialist is the right choice for the user's symptoms.
-2. Accuracy & Integrity:
+2. Accuracy & Medical Integrity:
+   - If a query contains anatomically contradictory or nonsensical combinations (e.g., 'headache in knee', 'ear pain in elbow', 'toothache in foot'):
+     DO NOT invent excuses or assume metaphors (e.g. NEVER say 'sometimes described as a headache in the knee').
+     Set is_valid_query=false, and provide a polite, professional clarification explaining that a headache is cranial pain while knee pain is an orthopedic joint issue, and invite them to specify their exact symptoms.
    - Only extract real clinics, doctors, and contact numbers found in the provided search results. Never invent fake phone numbers or addresses.
    - If no doctors are in search results, leave the doctors list empty.
 3. Urgency:
@@ -132,12 +143,16 @@ CRITICAL INSTRUCTIONS FOR SPECIALIST & CLINIC MATCHING (CORE PURPOSE):
    - Keep advice clear, actionable, and highlight red-flag symptoms.
 """
 
-INTENT_SYSTEM_PROMPT = """You are an ultra-fast clinical query parser.
-Analyze the user query and extract:
-1. is_health_related: boolean (true if health, wellness, medicine, symptoms, or biology)
-2. is_symptom: boolean (true if user describes an active pain, illness, or bodily complaint)
-3. specialty: the precise medical specialist needed (e.g., 'Cardiologist', 'Dermatologist', 'Neurologist', 'Orthopedic Specialist', 'Ophthalmologist', 'ENT Specialist', 'Gastroenterologist', 'General Physician')
-4. search_keywords: 2 to 4 concise search keywords for finding clinics (e.g. 'chest pain cardiology hospital')
+INTENT_SYSTEM_PROMPT = """You are an ultra-fast, rigorous clinical query analyzer.
+Analyze the user query with strict medical prudence and anatomical coherence:
+1. is_health_related: boolean (false for finance, coding, politics, or general trivia)
+2. is_medically_coherent: boolean
+   - Set to FALSE if the query contains anatomically contradictory, nonsensical, or physically impossible phrases (e.g., 'headache in knee', 'heart attack in finger', 'coughing through my ears', 'stomach bone fracture').
+   - Do NOT try to stretch or rationalize nonsensical metaphors (e.g., do NOT assume 'headache in knee' means knee pain).
+   - If FALSE, write a professional, polite clarification_message explaining why the phrase is medically contradictory and asking them to clarify which specific part of their body is affected.
+3. is_symptom: boolean (true if user describes an active, coherent bodily or mental symptom requiring triage)
+4. specialty: the appropriate medical specialist if coherent
+5. search_keywords: 2 to 4 keywords for finding clinics
 """
 
 
@@ -327,6 +342,19 @@ class HealthAIFacade:
                     "I am an AI Health Assistant focused solely on health, medicine, and wellness. "
                     "Please ask me about symptoms, medical concerns, fitness, or nutrition!"
                 ),
+            ).model_dump()
+
+        # Reject anatomically contradictory or nonsensical queries
+        if not intent.is_medically_coherent:
+            msg = intent.clarification_message or (
+                "Your query appears to combine anatomically contradictory terms. "
+                "For example, a headache refers specifically to cranial pain, whereas joint discomfort affects areas like the knee. "
+                "Please clarify which specific symptom and body area you are experiencing so I can assist you properly."
+            )
+            return HealthResponse(
+                is_valid_query=False,
+                query_type="invalid",
+                error_message=msg,
             ).model_dump()
 
         # Tier 2: Targeted Doctor Search for Symptom Queries
