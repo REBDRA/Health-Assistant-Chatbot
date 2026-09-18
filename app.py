@@ -21,8 +21,14 @@ st.set_page_config(
 load_dotenv()
 
 
+import textwrap
+
+
 # --- HELPER FUNCTIONS ---
 
+def clean_html(text: str) -> str:
+    """Strips leading indentation from multiline HTML to prevent Markdown parser from treating it as an indented code block."""
+    return textwrap.dedent(text).strip()
 def get_stars(rating: str) -> str:
     """Converts a numerical rating string (e.g. '4.5/5') to star emojis."""
     try:
@@ -688,7 +694,7 @@ with main_col:
                                 "error_message",
                                 "I can only assist with health, medical, and wellness questions.",
                             )
-                            card_html = f"""
+                            card_html = clean_html(f"""
                             <div class="chat-response-card" style="border-left: 4px solid #f59e0b;">
                                 <div style="font-weight: 700; color: #fbbf24; margin-bottom: 8px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
                                     <span>⚠️</span> <span>Clinical Clarification Needed</span>
@@ -697,7 +703,7 @@ with main_col:
                                     {html.escape(response_text)}
                                 </div>
                             </div>
-                            """
+                            """)
                             st.markdown(card_html, unsafe_allow_html=True)
                             st.session_state["messages"].append(
                                 {"role": "assistant", "content": card_html, "is_card": True}
@@ -720,9 +726,11 @@ with main_col:
                             direct_ans = data.get("direct_answer", "")
                             if direct_ans:
                                 html_parts.append(
-                                    f"<div style='margin-bottom: 16px; font-size: 1rem; line-height: 1.6; color: #f1f5f9;'>"
-                                    f"<strong>🩺 Clinical Overview:</strong><br>{html.escape(direct_ans)}"
-                                    f"</div>"
+                                    clean_html(f"""
+                                    <div style='margin-bottom: 16px; font-size: 1rem; line-height: 1.6; color: #f1f5f9;'>
+                                        <strong>🩺 Clinical Overview:</strong><br>{html.escape(direct_ans)}
+                                    </div>
+                                    """)
                                 )
 
                             # 3. Dedicated High-Precision Doctor Cards
@@ -730,9 +738,11 @@ with main_col:
                             specialty = data.get("specialty_needed", "")
                             if doctors:
                                 html_parts.append(
-                                    f"<div style='margin-top: 14px; margin-bottom: 10px; font-size: 1.05rem; font-weight: 700; color: #89f7fe;'>"
-                                    f"👨‍⚕️ Verified Specialists & Clinics in {html.escape(active_loc)}:"
-                                    f"</div>"
+                                    clean_html(f"""
+                                    <div style='margin-top: 14px; margin-bottom: 10px; font-size: 1.05rem; font-weight: 700; color: #89f7fe;'>
+                                        👨‍⚕️ Verified Specialists & Clinics in {html.escape(active_loc)}:
+                                    </div>
+                                    """)
                                 )
 
                                 sorted_doctors = sorted(
@@ -762,7 +772,7 @@ with main_col:
                                     if doc_link and doc_link.startswith("http"):
                                         btn_line = f"<a href='{html.escape(doc_link)}' target='_blank' class='doctor-btn'>View Clinic / Book Appointment →</a>"
 
-                                    card_html = f"""
+                                    card_html = clean_html(f"""
                                     <div class="doctor-card">
                                         <div class="doctor-header">
                                             <div>
@@ -779,7 +789,7 @@ with main_col:
                                         </div>
                                         {btn_line}
                                     </div>
-                                    """
+                                    """)
                                     html_parts.append(card_html)
 
                             # 4. Safe Home Remedies
@@ -787,25 +797,31 @@ with main_col:
                             if remedies:
                                 rem_items = "".join([f"<li style='margin-bottom: 6px;'>{html.escape(r)}</li>" for r in remedies])
                                 html_parts.append(
-                                    f"<div style='margin-top: 14px; background: rgba(30, 176, 191, 0.08); border-radius: 10px; padding: 12px 16px;'>"
-                                    f"<div style='font-weight: 700; color: #89f7fe; margin-bottom: 6px;'>🌿 Recommended Home Care & Recovery Steps:</div>"
-                                    f"<ul style='margin: 0; padding-left: 20px; color: #e2e8f0;'>{rem_items}</ul>"
-                                    f"</div>"
+                                    clean_html(f"""
+                                    <div style='margin-top: 14px; background: rgba(30, 176, 191, 0.08); border-radius: 10px; padding: 12px 16px;'>
+                                        <div style='font-weight: 700; color: #89f7fe; margin-bottom: 6px;'>🌿 Recommended Home Care & Recovery Steps:</div>
+                                        <ul style='margin: 0; padding-left: 20px; color: #e2e8f0;'>{rem_items}</ul>
+                                    </div>
+                                    """)
                                 )
 
                             # 5. Medical Guidance & Red Flags
                             advice = data.get("advice", "")
                             if advice:
                                 html_parts.append(
-                                    f"<div style='margin-top: 12px; font-size: 0.92rem; color: #cbd5e1; line-height: 1.6;'>"
-                                    f"<strong>💡 Medical Guidance & Warning Signs:</strong><br>{html.escape(advice)}"
-                                    f"</div>"
+                                    clean_html(f"""
+                                    <div style='margin-top: 12px; font-size: 0.92rem; color: #cbd5e1; line-height: 1.6;'>
+                                        <strong>💡 Medical Guidance & Warning Signs:</strong><br>{html.escape(advice)}
+                                    </div>
+                                    """)
                                 )
 
                             html_parts.append(
-                                "<div style='margin-top: 14px; font-size: 0.78rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;'>"
-                                "*Disclaimer: This guidance is provided by an AI triage assistant and does not substitute for a formal diagnosis or emergency medical care.*"
-                                "</div>"
+                                clean_html("""
+                                <div style='margin-top: 14px; font-size: 0.78rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;'>
+                                    *Disclaimer: This guidance is provided by an AI triage assistant and does not substitute for a formal diagnosis or emergency medical care.*
+                                </div>
+                                """)
                             )
 
                             full_response_html = f'<div class="chat-response-card">{"".join(html_parts)}</div>'
