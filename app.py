@@ -24,8 +24,8 @@ load_dotenv()
 # --- HELPER FUNCTIONS ---
 
 def clean_html(text: str) -> str:
-    """Strips leading indentation from multiline HTML to prevent Markdown parser from treating it as an indented code block."""
-    return textwrap.dedent(text).strip()
+    """Strips all leading whitespace from each line to prevent Markdown parser from treating HTML as indented code blocks."""
+    return "\n".join(line.lstrip() for line in text.strip().splitlines() if line.strip())
 def get_stars(rating: str) -> str:
     """Converts a numerical rating string (e.g. '4.5/5') to star emojis."""
     try:
@@ -375,13 +375,24 @@ div[data-testid="stButton"] button {
 
 # --- API KEY MANAGEMENT (BACKEND ENFORCED, ZERO LEAKS) ---
 
-env_key = os.environ.get("GROQ_API_KEY")
-try:
-    secret_key = st.secrets.get("GROQ_API_KEY")
-except Exception:
-    secret_key = None
+def get_active_api_key() -> str:
+    """Safely retrieves Groq API key from session override, Streamlit Secrets, or environment."""
+    # 1. User manual input / session state (takes priority if user entered a custom key in UI)
+    if st.session_state.get("user_groq_api_key"):
+        return st.session_state["user_groq_api_key"].strip()
+    # 2. Streamlit Cloud secrets
+    try:
+        if "GROQ_API_KEY" in st.secrets:
+            return str(st.secrets["GROQ_API_KEY"]).strip()
+    except Exception:
+        pass
+    # 3. Environment variable (.env or OS)
+    env_k = os.environ.get("GROQ_API_KEY", "").strip()
+    if env_k:
+        return env_k
+    return ""
 
-active_api_key = env_key or secret_key or st.session_state.get("user_groq_api_key", "").strip()
+active_api_key = get_active_api_key()
 
 # --- SIDEBAR (MINIMAL, CLEAN, NO TECHNICAL/GREEN CLUTTER) ---
 with st.sidebar:
@@ -389,18 +400,22 @@ with st.sidebar:
     st.caption("Clinical Triage & Specialist Discovery")
     st.markdown("---")
 
-    # If key is missing from environment, discreetly prompt for one
-    if not active_api_key:
-        input_key = st.text_input(
+    # API Configuration Expander
+    with st.expander("🔑 API Key Settings", expanded=not bool(active_api_key)):
+        masked_key = f"...{active_api_key[-4:]}" if active_api_key and len(active_api_key) > 4 else "Not configured"
+        st.caption(f"Status: {'✅ Connected' if active_api_key else '⚠️ Key Needed'} ({masked_key})")
+        new_key = st.text_input(
             "Groq API Key",
             type="password",
             value="",
             placeholder="gsk_...",
-            help="Enter a Groq API key to activate AI features.",
+            help="Enter or update your Groq API key.",
+            key="sidebar_groq_key_input",
         )
-        if input_key:
-            st.session_state["user_groq_api_key"] = input_key.strip()
-            st.rerun()
+        if st.button("Save & Apply Key", use_container_width=True, key="save_sidebar_key_btn"):
+            if new_key.strip():
+                st.session_state["user_groq_api_key"] = new_key.strip()
+                st.rerun()
 
     # Chat Actions
     st.markdown("#### 💬 Chat Actions")
@@ -744,8 +759,19 @@ with main_col:
                                     doc_name = html.escape(doc.get("name") or "Specialist Clinic")
                                     doc_spec = html.escape(doc.get("specialty") or specialty or "Medical Specialist")
                                     doc_hosp = html.escape(doc.get("clinic_or_hospital") or "")
-                                    doc_loc = html.escape(doc.get("location") or active_loc)
-                                    doc_phone = html.escape(doc.get("phone") or "Contact Clinic")
+
+                                    doc_loc_raw = str(doc.get("location") or "").strip()
+                                    if not doc_loc_raw or doc_loc_raw.lower() in ("not specified", "unknown", "local area", "n/a", "none"):
+                                        doc_loc = html.escape(active_loc)
+                                    else:
+                                        doc_loc = html.escape(doc_loc_raw)
+
+                                    doc_phone_raw = str(doc.get("phone") or "").strip()
+                                    if not doc_phone_raw or doc_phone_raw.lower() in ("not specified", "unknown", "n/a", "none"):
+                                        doc_phone = "Visit Clinic / Hospital Directory"
+                                    else:
+                                        doc_phone = html.escape(doc_phone_raw)
+
                                     doc_rating = html.escape(doc.get("rating") or "4.5/5")
                                     doc_stars = get_stars(doc_rating)
                                     doc_link = doc.get("link", "")
@@ -810,7 +836,7 @@ with main_col:
                                 """)
                             )
 
-                            full_response_html = f'<div class="chat-response-card">{"".join(html_parts)}</div>'
+                            full_response_html = clean_html(f'<div class="chat-response-card">{"".join(html_parts)}</div>')
                             st.markdown(full_response_html, unsafe_allow_html=True)
 
                             st.session_state["messages"].append(
@@ -818,11 +844,28 @@ with main_col:
                             )
 
                     except Exception as e:
-                        err_msg = f"Unable to process consultation at this moment: {e}"
-                        st.error(err_msg)
-                        st.session_state["messages"].append(
-                            {"role": "assistant", "content": err_msg}
-                        )
+                        err_str = str(e)
+                        if "401" in err_str or "invalid_api_key" in err_str.lower():
+                            auth_err_card = clean_html("""
+                            <div class="chat-response-card" style="border-left: 4px solid #ef4444;">
+                                <div style="font-weight: 700; color: #fca5a5; margin-bottom: 8px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                    <span>🔑</span> <span>Groq API Key Authentication Failed</span>
+                                </div>
+                                <div style="line-height: 1.6; color: #cbd5e1; font-size: 0.95rem;">
+                                    Your Groq API Key was not recognized (401: Invalid API Key). Please open <b>API Key Settings</b> in the left sidebar to enter or update your active key, or configure <code>GROQ_API_KEY</code> in Streamlit Cloud Secrets.
+                                </div>
+                            </div>
+                            """)
+                            st.markdown(auth_err_card, unsafe_allow_html=True)
+                            st.session_state["messages"].append(
+                                {"role": "assistant", "content": auth_err_card, "is_card": True}
+                            )
+                        else:
+                            err_msg = f"Unable to process consultation at this moment: {e}"
+                            st.error(err_msg)
+                            st.session_state["messages"].append(
+                                {"role": "assistant", "content": err_msg}
+                            )
 
     # Render previous conversation history
     rendered_history = st.session_state.get("messages", [])

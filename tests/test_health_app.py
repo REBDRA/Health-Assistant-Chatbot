@@ -1,6 +1,6 @@
 import pytest
 from ai_service import Doctor, HealthResponse, QueryIntent, sanitize_search_term
-from app import get_stars, doctor_completeness_score
+from app import get_stars, doctor_completeness_score, clean_html
 
 
 def test_sanitize_search_term():
@@ -58,3 +58,18 @@ def test_doctor_completeness_score():
         "link": "",
     }
     assert doctor_completeness_score(complete_doc) > doctor_completeness_score(empty_doc)
+
+
+def test_clean_html_strips_leading_whitespace():
+    indented_html = (
+        "    <div class=\"doctor-card\">\n"
+        "        <div class=\"doctor-details\">\n"
+        "            <div class=\"doctor-detail-item\">📍 Location</div>\n"
+        "        </div>\n"
+        "    </div>\n"
+    )
+    cleaned = clean_html(indented_html)
+    for line in cleaned.splitlines():
+        assert not line.startswith(" "), f"Line still has leading space: {line}"
+    assert "<div class=\"doctor-card\">" in cleaned
+    assert "📍 Location" in cleaned
