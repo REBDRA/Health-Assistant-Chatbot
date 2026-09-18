@@ -256,7 +256,7 @@ div[data-testid="stButton"] button {
 )
 
 
-# --- API KEY MANAGEMENT ---
+# --- API KEY MANAGEMENT (ZERO CLIENT EXPOSURE) ---
 
 env_key = os.environ.get("GROQ_API_KEY")
 try:
@@ -264,34 +264,61 @@ try:
 except Exception:
     secret_key = None
 
-stored_key = env_key or secret_key or st.session_state.get("user_groq_api_key", "")
+server_has_key = bool(env_key or secret_key)
+session_custom_key = st.session_state.get("user_groq_api_key", "").strip()
+
+# Active key resolved securely on backend
+active_api_key = session_custom_key or env_key or secret_key
 
 # Sidebar Configuration
 with st.sidebar:
     st.markdown("### ⚙️ System Settings")
 
-    user_input_key = st.text_input(
-        "Groq API Key",
-        value=stored_key,
-        type="password",
-        help="Get your free key from https://console.groq.com/keys",
-        placeholder="gsk_...",
-    )
+    if server_has_key and not session_custom_key:
+        st.success("🛡️ Backend Key Active", icon="🔒")
+        st.markdown(
+            "<small style='color: #94a3b8;'>"
+            "Groq API is securely managed in your local server environment (<code>.env</code>). "
+            "Credentials are never transmitted to or exposed in the browser."
+            "</small>",
+            unsafe_allow_html=True,
+        )
 
-    if user_input_key != stored_key:
-        st.session_state["user_groq_api_key"] = user_input_key.strip()
-        st.rerun()
+        with st.expander("Override with custom key"):
+            new_custom_key = st.text_input(
+                "Custom Groq Key",
+                type="password",
+                value="",
+                placeholder="gsk_...",
+                help="Optional: Override backend key with your own for this session",
+            )
+            if new_custom_key:
+                st.session_state["user_groq_api_key"] = new_custom_key.strip()
+                st.rerun()
 
-    active_api_key = st.session_state.get("user_groq_api_key") or stored_key
+    elif session_custom_key:
+        st.success("🟢 Custom Session Key Active", icon="🔑")
+        if st.button("Disconnect Custom Key", use_container_width=True):
+            st.session_state["user_groq_api_key"] = ""
+            st.rerun()
 
-    if active_api_key:
-        st.success("🟢 API Key Active", icon="✅")
     else:
         st.warning("🟠 API Key Missing", icon="⚠️")
+        input_key = st.text_input(
+            "Enter Groq API Key",
+            type="password",
+            value="",
+            placeholder="gsk_...",
+            help="Your key is kept in session memory only and never stored on disk.",
+        )
+        if input_key:
+            st.session_state["user_groq_api_key"] = input_key.strip()
+            st.rerun()
+
         st.markdown(
             """
             <small style='color: #94a3b8;'>
-            To enable AI diagnoses, enter a free Groq API key above or set <code>GROQ_API_KEY</code> in <code>.env</code>.
+            Set <code>GROQ_API_KEY</code> in <code>.env</code> on the server or enter a temporary key above.
             <br><a href='https://console.groq.com/keys' target='_blank' style='color: #89f7fe;'>Get Free Groq Key →</a>
             </small>
             """,
