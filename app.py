@@ -112,8 +112,9 @@ def get_daily_tip(api_key: Optional[str]) -> str:
     if api_key:
         try:
             client = Groq(api_key=api_key)
+            tip_model = "openai/gpt-oss-20b"
             response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model=tip_model,
                 messages=[
                     {
                         "role": "system",

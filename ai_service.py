@@ -168,6 +168,39 @@ def fetch_live_doctors(specialty: str, location: str, keywords: str = "") -> str
     return raw_results
 
 
+os.environ["PYDANTIC_AI_NO_BANNER"] = "1"
+
+
+def resolve_groq_models(api_key: str) -> Tuple[str, str]:
+    """Detects best available models for fast classification and main triage."""
+    from groq import Groq
+    try:
+        client = Groq(api_key=api_key)
+        available = {m.id for m in client.models.list().data}
+
+        # Fast model candidates (lowest latency, lowest token cost)
+        fast_candidates = [
+            "openai/gpt-oss-20b",
+            "llama-3.1-8b-instant",
+            "qwen/qwen3.8-27b",
+            "groq/compound-mini",
+        ]
+        fast_model = next((m for m in fast_candidates if m in available), "openai/gpt-oss-20b")
+
+        # Triage model candidates (highest reasoning capabilities)
+        triage_candidates = [
+            "openai/gpt-oss-120b",
+            "llama-3.3-70b-versatile",
+            "qwen/qwen3.8-27b",
+            "openai/gpt-oss-20b",
+        ]
+        triage_model = next((m for m in triage_candidates if m in available), "openai/gpt-oss-120b")
+
+        return fast_model, triage_model
+    except Exception:
+        return "openai/gpt-oss-20b", "openai/gpt-oss-120b"
+
+
 # --- 4. FACADE & ORCHESTRATION ---
 
 class HealthAIFacade:
@@ -180,16 +213,18 @@ class HealthAIFacade:
 
         self.provider = GroqProvider(api_key=self.api_key)
 
-        # Fast tier: llama-3.1-8b-instant for sub-300ms classification & intent extraction
-        self.fast_model = GroqModel("llama-3.1-8b-instant", provider=self.provider)
+        fast_model_id, triage_model_id = resolve_groq_models(self.api_key)
+
+        # Fast tier: sub-300ms intent & specialty classification
+        self.fast_model = GroqModel(fast_model_id, provider=self.provider)
         self.intent_agent = Agent(
             model=self.fast_model,
             output_type=QueryIntent,
             system_prompt=INTENT_SYSTEM_PROMPT,
         )
 
-        # Clinical tier: llama-3.3-70b-versatile for nuanced medical triage & structuring
-        self.triage_model = GroqModel("llama-3.3-70b-versatile", provider=self.provider)
+        # Clinical tier: high-capacity reasoning & structured triage
+        self.triage_model = GroqModel(triage_model_id, provider=self.provider)
         self.health_agent = Agent(
             model=self.triage_model,
             output_type=HealthResponse,
@@ -200,7 +235,7 @@ class HealthAIFacade:
         """Validates the Groq API key with a minimal request."""
         try:
             test_agent = Agent(self.fast_model, output_type=str)
-            test_agent.run_sync("ping", timeout=8)
+            test_agent.run_sync("ping")
             return True, "API Key is valid and active."
         except Exception as e:
             msg = str(e)
