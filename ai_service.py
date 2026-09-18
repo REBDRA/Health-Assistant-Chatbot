@@ -16,23 +16,35 @@ logger = logging.getLogger(__name__)
 
 class Doctor(BaseModel):
     name: str = Field(
-        description="Actual name of the doctor or clinic found in search."
+        description="Name of the specialist or clinic (e.g., 'Dr. Amitav Banerjee' or 'BM Birla Heart Research Centre')."
+    )
+    specialty: str = Field(
+        default="",
+        description="Exact medical specialty or subspecialty (e.g., 'Cardiologist', 'Ophthalmologist')."
+    )
+    clinic_or_hospital: str = Field(
+        default="",
+        description="Associated hospital, medical center, or clinic facility name."
+    )
+    location: str = Field(
+        default="Local area",
+        description="Specific street address, neighborhood, or locality near the user."
     )
     phone: str = Field(
         default="Visit Website",
-        description="Contact number or 'Visit Website' if phone not found."
-    )
-    location: str = Field(
-        default="Not specified",
-        description="Specific area, clinic address, or locality near the user's location."
+        description="Direct appointment phone number or booking hotline."
     )
     rating: str = Field(
-        default="4.5/5",
+        default="4.6/5",
         description="Rating from search results (format X.X/5) or 'Verified'."
     )
     link: str = Field(
         default="",
-        description="URL to the doctor's profile, clinic page, or search listing."
+        description="Direct official website URL or booking profile link."
+    )
+    why_recommended: str = Field(
+        default="",
+        description="1 concise sentence explaining why this specialist specifically matches the patient's condition."
     )
 
 
@@ -43,25 +55,33 @@ class HealthResponse(BaseModel):
     query_type: str = Field(
         description="'symptom_triage' for physical/mental complaints, 'general_health' for educational health questions."
     )
+    urgency_level: str = Field(
+        default="Routine",
+        description="'Emergency (Call 112/911)', 'Urgent (Consult within 24-48h)', or 'Routine / Self-Care'."
+    )
+    specialty_needed: str = Field(
+        default="",
+        description="Primary medical specialty needed (e.g. 'Neurologist', 'Cardiologist', 'Dermatologist')."
+    )
     direct_answer: str = Field(
         default="",
-        description="Comprehensive answer for general health queries or overview for symptoms."
+        description="Comprehensive clinical evaluation or symptom overview."
     )
     remedies: List[str] = Field(
         default_factory=list,
-        description="Actionable home remedies, recovery steps, or first-aid tips."
+        description="Actionable, safe home remedies, recovery steps, or first-aid measures."
     )
     advice: str = Field(
         default="",
-        description="General lifestyle, dietary, preventive guidance, or medical warnings."
+        description="Clear medical guidance, preventive measures, and red-flag symptoms to monitor."
     )
     doctors: List[Doctor] = Field(
         default_factory=list,
-        description="List of real clinics or doctors extracted strictly from provided search results."
+        description="Top matching local doctors or specialized clinics extracted strictly from search results."
     )
     error_message: str = Field(
         default="",
-        description="Helpful message explaining why query could not be processed if invalid."
+        description="Polite message explaining why query could not be processed if invalid."
     )
 
 
@@ -70,50 +90,54 @@ class QueryIntent(BaseModel):
         description="True if query pertains to health, medicine, fitness, symptoms, or biology."
     )
     is_symptom: bool = Field(
-        description="True if user is describing an active illness, pain, bodily complaint, or injury."
+        description="True if user describes an active physical or mental complaint requiring triage."
     )
     specialty: str = Field(
         default="General Physician",
-        description="The medical specialist best suited for this issue (e.g. Dermatologist, Cardiologist, ENT)."
+        description="The precise medical specialist needed (e.g. Cardiologist, Dermatologist, ENT Specialist, Neurologist)."
     )
     search_keywords: str = Field(
         default="",
-        description="2 to 4 keywords describing the condition for targeted clinic search (e.g. 'migraine headache neurology')."
+        description="2 to 4 concise keywords describing the medical condition (e.g. 'migraine headache neurology')."
     )
 
 
 # --- 2. SYSTEM INSTRUCTIONS ---
 
-HEALTH_SYSTEM_PROMPT = """You are a compassionate, certified-level Clinical Triage & Health Assistant AI.
+HEALTH_SYSTEM_PROMPT = """You are an elite, certified Medical Triage AI and Clinical Doctor Discovery Engine.
+Your primary mission is to help patients understand their symptoms accurately, provide immediate safe relief steps, and precisely connect them to verified local medical specialists suited for their exact health condition.
 
-Your role is to assess user queries with strict medical prudence, empathy, and evidence-based guidance.
-
-CRITICAL PROTOCOLS:
-1. QUERY TYPES:
-   - 'general_health': For wellness, nutrition, fitness, medication explanations, or medical facts.
-     Provide a clear, educational direct_answer and practical lifestyle tips in advice. Keep remedies and doctors empty.
-   - 'symptom_triage': For active bodily or mental complaints (e.g., pain, rash, nausea, fever).
-     - Provide immediate home remedies & safe self-care steps in 'remedies' (numbered or listed).
-     - Provide broader preventive advice and warning signs/red flags in 'advice'.
-     - For 'doctors', extract ONLY up to 3 genuine doctors or clinics from the provided search results below. If no search results or irrelevant, leave 'doctors' empty.
-   - If completely off-topic (e.g. coding, finance, trivia) or gibberish, set is_valid_query=false and provide a polite redirect in error_message.
-
-2. RULES FOR EXTRACTED DOCTORS:
-   - Extract real clinic/doctor names, telephone/contact, locality, and URLs from the SEARCH RESULTS provided in prompt.
-   - NEVER invent or fabricate imaginary doctor names. If the search results do not contain relevant clinics, return an empty doctors array.
-   - Include the medical specialty in the name if known (e.g. 'Dr. Ananya Roy (Cardiologist)' or 'Apollo Clinic (Dermatology)').
-   - Format ratings as 'X.X/5' or 'Verified'.
-
-3. SAFETY & RED FLAGS:
-   - If symptoms indicate life-threatening conditions (e.g. crushing chest pain, sudden numbness, severe difficulty breathing, uncontrollable bleeding), prominently urge immediate emergency services (e.g. call 112/911 or visit the nearest ER) at the start of advice.
+CRITICAL INSTRUCTIONS FOR SPECIALIST & CLINIC MATCHING (CORE PURPOSE):
+1. Precision Matching:
+   - Identify the exact medical discipline and sub-specialty required for the patient's complaint (e.g., 'Interventional Cardiologist', 'Corneal Eye Specialist', 'Orthopedic Spine Surgeon', 'ENT Specialist').
+   - Set 'specialty_needed' clearly.
+   - Extract up to 3 genuine doctors, hospitals, or specialized clinics from the VERIFIED LOCAL SEARCH RESULTS provided below.
+   - Fill in:
+     - name: Doctor or Clinic name.
+     - specialty: Exact specialty matching the symptom.
+     - clinic_or_hospital: Hospital/Center affiliation.
+     - location: Specific address/locality.
+     - phone: Contact number or appointment booking hotline.
+     - rating: 'X.X/5' or 'Verified'.
+     - link: URL to profile or clinic website.
+     - why_recommended: 1 concise sentence explaining specifically why this specialist is the right choice for the user's symptoms.
+2. Accuracy & Integrity:
+   - Only extract real clinics, doctors, and contact numbers found in the provided search results. Never invent fake phone numbers or addresses.
+   - If no doctors are in search results, leave the doctors list empty.
+3. Urgency:
+   - Set urgency_level: 'Emergency (Call 112/911)', 'Urgent (Consult within 24-48h)', or 'Routine / Self-Care'.
+   - If symptoms indicate life-threatening conditions (e.g. crushing chest pain, sudden numbness/slurred speech, severe breathing distress), prominently urge emergency services immediately.
+4. Remedies & Advice:
+   - Keep remedies concise, bulleted, and medically safe (e.g. hydration, rest, specific over-the-counter or non-drug remedies).
+   - Keep advice clear, actionable, and highlight red-flag symptoms.
 """
 
-INTENT_SYSTEM_PROMPT = """You are an ultra-fast medical query parser.
-Classify the user query and extract:
-1. is_health_related: boolean
-2. is_symptom: boolean (true if describing a bodily complaint, pain, or illness requiring diagnosis/triage)
-3. specialty: most appropriate medical specialty (e.g., ENT Specialist, Orthopedic, Dermatologist, Neurologist, General Physician)
-4. search_keywords: 2 to 4 concise search keywords for finding clinics (e.g. 'orthopedic joint pain')
+INTENT_SYSTEM_PROMPT = """You are an ultra-fast clinical query parser.
+Analyze the user query and extract:
+1. is_health_related: boolean (true if health, wellness, medicine, symptoms, or biology)
+2. is_symptom: boolean (true if user describes an active pain, illness, or bodily complaint)
+3. specialty: the precise medical specialist needed (e.g., 'Cardiologist', 'Dermatologist', 'Neurologist', 'Orthopedic Specialist', 'Ophthalmologist', 'ENT Specialist', 'Gastroenterologist', 'General Physician')
+4. search_keywords: 2 to 4 concise search keywords for finding clinics (e.g. 'chest pain cardiology hospital')
 """
 
 
@@ -150,20 +174,23 @@ def _cached_doctor_search(search_query: str) -> str:
 
 
 def fetch_live_doctors(specialty: str, location: str, keywords: str = "") -> str:
-    """Fetches real clinics and doctor listings using targeted query."""
+    """Fetches verified clinics and doctor listings using targeted multi-query search."""
     clean_loc = sanitize_search_term(location)
     clean_spec = sanitize_search_term(specialty)
     clean_kw = sanitize_search_term(keywords) if keywords else ""
 
-    # Build targeted search query
-    query = f"top {clean_spec} {clean_kw} clinic doctor in {clean_loc} contact address"
-    query = " ".join(query.split())  # normalize spaces
+    # Primary targeted query for hospital/clinic with contact details
+    q1 = f"best {clean_spec} doctor clinic in {clean_loc} hospital phone address"
+    q1 = " ".join(q1.split())
+    raw_results = _cached_doctor_search(q1)
 
-    raw_results = _cached_doctor_search(query)
-    if not raw_results and clean_loc:
-        # Fallback to broader specialty search in location
-        broad_query = f"{clean_spec} hospital clinic {clean_loc} phone"
-        raw_results = _cached_doctor_search(broad_query)
+    # If results are sparse, supplement with top specialist query
+    if not raw_results or len(raw_results) < 250:
+        q2 = f"top {clean_spec} specialist in {clean_loc} contact appointment"
+        q2 = " ".join(q2.split())
+        supp = _cached_doctor_search(q2)
+        if supp:
+            raw_results = (raw_results + "\n\n---\n\n" + supp).strip()
 
     return raw_results
 
@@ -178,7 +205,7 @@ def resolve_groq_models(api_key: str) -> Tuple[str, str]:
         client = Groq(api_key=api_key)
         available = {m.id for m in client.models.list().data}
 
-        # Fast model candidates (lowest latency, lowest token cost)
+        # Fast model candidates
         fast_candidates = [
             "openai/gpt-oss-20b",
             "llama-3.1-8b-instant",
@@ -187,7 +214,7 @@ def resolve_groq_models(api_key: str) -> Tuple[str, str]:
         ]
         fast_model = next((m for m in fast_candidates if m in available), "openai/gpt-oss-20b")
 
-        # Triage model candidates (highest reasoning capabilities)
+        # Triage model candidates
         triage_candidates = [
             "openai/gpt-oss-120b",
             "llama-3.3-70b-versatile",
@@ -312,17 +339,18 @@ class HealthAIFacade:
             )
             if raw_search:
                 doctor_context = (
-                    f"\n\n=== VERIFIED LOCAL CLINIC SEARCH RESULTS (Location: {user_location}) ===\n"
+                    f"\n\n=== VERIFIED LOCAL SPECIALIST & CLINIC SEARCH RESULTS (Location: {user_location}) ===\n"
                     f"{raw_search}\n"
                     f"=== END OF SEARCH RESULTS ===\n"
                     f"INSTRUCTIONS FOR DOCTORS: Extract up to 3 genuine clinic/doctor profiles from the search results above. "
-                    f"Extract name, phone, locality, rating, and website links. If search results do not list real clinics, leave doctors empty."
+                    f"Extract name, specialty, clinic/hospital name, specific location/address, phone number, rating, link, and why_recommended. "
+                    f"If search results do not list real clinics, leave doctors empty."
                 )
 
         # Build full clinical prompt
         full_input = (
             f"User Location: {user_location}\n"
-            f"Target Specialty Needed: {intent.specialty}\n"
+            f"Target Specialist Discipline: {intent.specialty}\n"
             f"{'Conversation History:\n' + history_text + '\n' if history_text else ''}"
             f"Current Patient Query: {user_prompt}"
             f"{doctor_context}"

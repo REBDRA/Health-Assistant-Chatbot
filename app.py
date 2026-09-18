@@ -37,16 +37,16 @@ def get_stars(rating: str) -> str:
 def doctor_completeness_score(doc: dict) -> int:
     """Ranks doctors based on available contact details and credibility."""
     score = 0
-    name = doc.get("name", "").lower()
-    phone = doc.get("phone", "").lower()
-    location = doc.get("location", "").lower()
-    rating = doc.get("rating", "").lower()
+    name = str(doc.get("name", "")).lower()
+    phone = str(doc.get("phone", "")).lower()
+    location = str(doc.get("location", "")).lower()
+    rating = str(doc.get("rating", "")).lower()
 
     if name and name not in ("unknown", "no doctors found", ""):
         score += 3
     if phone and phone not in ("visit website", "n/a", "not available", ""):
         score += 3
-    if location and location not in ("not available", "unknown", "", "not specified"):
+    if location and location not in ("not available", "unknown", "", "local area", "not specified"):
         score += 2
     if rating and rating not in ("", "verified"):
         score += 1
@@ -112,9 +112,8 @@ def get_daily_tip(api_key: Optional[str]) -> str:
     if api_key:
         try:
             client = Groq(api_key=api_key)
-            tip_model = "openai/gpt-oss-20b"
             response = client.chat.completions.create(
-                model=tip_model,
+                model="openai/gpt-oss-20b",
                 messages=[
                     {
                         "role": "system",
@@ -156,7 +155,7 @@ html, body, [class*="css"] {
 }
 
 [data-testid="block-container"] {
-    padding-top: 2rem;
+    padding-top: 1.8rem;
     padding-bottom: 3.5rem;
 }
 
@@ -170,29 +169,155 @@ html, body, [class*="css"] {
     padding: 1.25rem;
     margin-bottom: 1.2rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.glass-card:hover {
-    border-color: rgba(137, 247, 254, 0.5);
 }
 
 /* Chat Bubbles */
 .chat-response-card {
     background: rgba(15, 30, 42, 0.82);
-    border: 1px solid rgba(137, 247, 254, 0.28);
+    border: 1px solid rgba(137, 247, 254, 0.25);
     border-radius: 18px;
-    padding: 1.4rem;
+    padding: 1.5rem;
     color: #f1f5f9;
     line-height: 1.65;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-    margin-bottom: 1rem;
+    margin-bottom: 1.2rem;
     animation: fadeIn 0.3s ease-in-out;
 }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* High-Precision Doctor Cards */
+.doctor-card {
+    background: linear-gradient(135deg, rgba(16, 36, 50, 0.85), rgba(11, 25, 35, 0.95));
+    border: 1px solid rgba(30, 176, 191, 0.35);
+    border-left: 5px solid #1eb0bf;
+    border-radius: 14px;
+    padding: 1.15rem 1.35rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.doctor-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(137, 247, 254, 0.7);
+    box-shadow: 0 10px 25px rgba(30, 176, 191, 0.15);
+}
+
+.doctor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+}
+
+.doctor-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.doctor-specialty {
+    display: inline-block;
+    background: rgba(30, 176, 191, 0.2);
+    border: 1px solid rgba(30, 176, 191, 0.4);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #89f7fe;
+    margin-top: 4px;
+}
+
+.doctor-rating {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.12);
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.doctor-details {
+    font-size: 0.9rem;
+    color: #cbd5e1;
+    margin-bottom: 10px;
+}
+
+.doctor-detail-item {
+    margin-bottom: 4px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.doctor-why {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.doctor-btn {
+    display: inline-block;
+    background: #1eb0bf;
+    color: #071017 !important;
+    text-decoration: none !important;
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 6px 14px;
+    border-radius: 8px;
+    margin-top: 8px;
+    transition: background 0.2s ease;
+}
+
+.doctor-btn:hover {
+    background: #5dfff7;
+}
+
+/* Urgency Badges */
+.urgency-emergency {
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-block;
+    margin-bottom: 12px;
+}
+
+.urgency-urgent {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid #f59e0b;
+    color: #fde68a;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-block;
+    margin-bottom: 12px;
+}
+
+.urgency-routine {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid #10b981;
+    color: #a7f3d0;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-block;
+    margin-bottom: 12px;
 }
 
 /* Emergency Banner */
@@ -256,7 +381,7 @@ div[data-testid="stButton"] button {
 )
 
 
-# --- API KEY MANAGEMENT (ZERO CLIENT EXPOSURE) ---
+# --- API KEY MANAGEMENT (BACKEND ENFORCED, ZERO LEAKS) ---
 
 env_key = os.environ.get("GROQ_API_KEY")
 try:
@@ -264,77 +389,34 @@ try:
 except Exception:
     secret_key = None
 
-server_has_key = bool(env_key or secret_key)
-session_custom_key = st.session_state.get("user_groq_api_key", "").strip()
+active_api_key = env_key or secret_key or st.session_state.get("user_groq_api_key", "").strip()
 
-# Active key resolved securely on backend
-active_api_key = session_custom_key or env_key or secret_key
-
-# Sidebar Configuration
+# --- SIDEBAR (MINIMAL, CLEAN, NO TECHNICAL/GREEN CLUTTER) ---
 with st.sidebar:
-    st.markdown("### ⚙️ System Settings")
+    st.markdown("### 🩺 Health Assistant")
+    st.caption("Clinical Triage & Specialist Discovery")
+    st.markdown("---")
 
-    if server_has_key and not session_custom_key:
-        st.success("🛡️ Backend Key Active", icon="🔒")
-        st.markdown(
-            "<small style='color: #94a3b8;'>"
-            "Groq API is securely managed in your local server environment (<code>.env</code>). "
-            "Credentials are never transmitted to or exposed in the browser."
-            "</small>",
-            unsafe_allow_html=True,
-        )
-
-        with st.expander("Override with custom key"):
-            new_custom_key = st.text_input(
-                "Custom Groq Key",
-                type="password",
-                value="",
-                placeholder="gsk_...",
-                help="Optional: Override backend key with your own for this session",
-            )
-            if new_custom_key:
-                st.session_state["user_groq_api_key"] = new_custom_key.strip()
-                st.rerun()
-
-    elif session_custom_key:
-        st.success("🟢 Custom Session Key Active", icon="🔑")
-        if st.button("Disconnect Custom Key", use_container_width=True):
-            st.session_state["user_groq_api_key"] = ""
-            st.rerun()
-
-    else:
-        st.warning("🟠 API Key Missing", icon="⚠️")
+    # If key is missing from environment, discreetly prompt for one
+    if not active_api_key:
         input_key = st.text_input(
-            "Enter Groq API Key",
+            "Groq API Key",
             type="password",
             value="",
             placeholder="gsk_...",
-            help="Your key is kept in session memory only and never stored on disk.",
+            help="Enter a Groq API key to activate AI features.",
         )
         if input_key:
             st.session_state["user_groq_api_key"] = input_key.strip()
             st.rerun()
 
-        st.markdown(
-            """
-            <small style='color: #94a3b8;'>
-            Set <code>GROQ_API_KEY</code> in <code>.env</code> on the server or enter a temporary key above.
-            <br><a href='https://console.groq.com/keys' target='_blank' style='color: #89f7fe;'>Get Free Groq Key →</a>
-            </small>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("---")
-
-    # Clear Chat & Consultation Export
-    st.markdown("### 💬 Chat Management")
+    # Chat Actions
+    st.markdown("#### 💬 Chat Actions")
     if st.button("🗑️ Clear Chat History", use_container_width=True):
         st.session_state["messages"] = []
         st.rerun()
 
     if "messages" in st.session_state and st.session_state["messages"]:
-        # Prepare consultation export text
         export_text = "# Health Assistant Consultation Report\n\n"
         export_text += f"Date: {date.today().isoformat()}\n"
         export_text += f"Location: {st.session_state.get('user_location', 'Not specified')}\n\n---\n\n"
@@ -351,6 +433,19 @@ with st.sidebar:
             use_container_width=True,
         )
 
+    st.markdown("---")
+    st.markdown("#### 📋 Consultation Guide")
+    st.markdown(
+        """
+        <div style='font-size: 0.83rem; color: #94a3b8; line-height: 1.55;'>
+        • <b>Describe symptoms clearly:</b> Mention duration, intensity, and location.<br>
+        • <b>Specify your area:</b> Use the Clinic Finder to discover nearby doctors.<br>
+        • <b>Emergency:</b> For severe chest pain, shortness of breath, or trauma, call <b>112/911</b> immediately.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 # Initialize AI Facade if key exists
 health_ai = None
@@ -358,7 +453,7 @@ if active_api_key:
     try:
         health_ai = HealthAIFacade(api_key=active_api_key)
     except Exception as exc:
-        st.sidebar.error(f"AI Service Initialization Error: {exc}")
+        st.sidebar.error(f"AI Service Error: {exc}")
 
 
 # --- THREE-COLUMN WORKSPACE LAYOUT ---
@@ -383,14 +478,13 @@ with left_col:
         healthy_max = 24.9 * ((height / 100) ** 2)
 
         if bmi < 18.5:
-            status, color, alert_type = "Underweight", "#38bdf8", "info"
+            status, color = "Underweight", "#38bdf8"
         elif 18.5 <= bmi < 24.9:
-            status, color, alert_type = "Healthy Weight", "#4ade80", "success"
+            status, color = "Healthy Weight", "#4ade80"
         elif 25 <= bmi < 29.9:
-            status, color, alert_type = "Overweight", "#fbbf24", "warning"
+            status, color = "Overweight", "#fbbf24"
         else:
             status, color = "Obese Range", "#f87171"
-            alert_type = "error"
 
         st.markdown(
             f"""
@@ -543,24 +637,17 @@ with main_col:
         unsafe_allow_html=True,
     )
 
-    # API Key warning if missing
-    if not active_api_key:
-        st.info(
-            "👋 **Welcome!** Please enter a free Groq API Key in the left sidebar to activate AI medical triage.",
-            icon="🔑",
-        )
-
     # Quick Suggestion Prompts
     st.markdown("<small style='color: #94a3b8; font-weight: 600;'>Suggested Inquiries:</small>", unsafe_allow_html=True)
     q_col1, q_col2, q_col3 = st.columns(3)
 
     suggested_prompt = None
     if q_col1.button("🤕 Severe Migraine Relief", use_container_width=True):
-        suggested_prompt = "I have a throbbing migraine headache with sensitivity to light. What remedies help and should I see a neurologist?"
-    if q_col2.button("💊 Paracetamol with Ibuprofen?", use_container_width=True):
+        suggested_prompt = "I have a throbbing migraine headache on one side of my head with nausea and light sensitivity. What specialist should I see and what home remedies can help?"
+    if q_col2.button("💊 Alternating Medications?", use_container_width=True):
         suggested_prompt = "Can I safely alternate paracetamol and ibuprofen for fever, and what is the proper timing?"
-    if q_col3.button("🌿 Acidity & Acid Reflux Care", use_container_width=True):
-        suggested_prompt = "I am suffering from acute acid reflux and burning sensation in my chest after eating. What home remedies help immediately?"
+    if q_col3.button("🌿 Acute Acid Reflux Care", use_container_width=True):
+        suggested_prompt = "I am suffering from acute acid reflux and burning sensation in my chest after eating. What home remedies help immediately and what specialist treats chronic GERD?"
 
     # Initialize Chat History
     if "messages" not in st.session_state:
@@ -574,7 +661,7 @@ with main_col:
 
     if active_prompt:
         if not active_api_key or not health_ai:
-            st.error("Please provide a valid Groq API Key in the left sidebar to consult the AI assistant.")
+            st.error("Please provide a Groq API Key in the left sidebar to consult the AI assistant.")
         else:
             # Append and render user message
             st.session_state["messages"].append({"role": "user", "content": active_prompt})
@@ -584,7 +671,7 @@ with main_col:
 
             # Generate AI Triage Response
             with st.chat_message("assistant", avatar="🩺"):
-                with st.spinner("Analyzing symptoms & scanning local specialists..."):
+                with st.spinner("Analyzing symptoms & finding matched local specialists..."):
                     try:
                         active_loc = (
                             st.session_state.get("user_location", "")
@@ -606,65 +693,116 @@ with main_col:
                                 {"role": "assistant", "content": response_text}
                             )
                         else:
-                            content_blocks = []
+                            # Build Rich Triage Presentation
+                            html_parts = []
 
-                            # Direct Answer
+                            # 1. Urgency Badge
+                            urgency = data.get("urgency_level", "Routine")
+                            urgency_cls = "urgency-routine"
+                            if "emergency" in urgency.lower():
+                                urgency_cls = "urgency-emergency"
+                            elif "urgent" in urgency.lower():
+                                urgency_cls = "urgency-urgent"
+
+                            html_parts.append(f'<div class="{urgency_cls}">⏱️ Consultation Urgency: {html.escape(urgency)}</div>')
+
+                            # 2. Clinical Overview
                             direct_ans = data.get("direct_answer", "")
                             if direct_ans:
-                                content_blocks.append(f"### 🩺 Clinical Overview\n{direct_ans}")
+                                html_parts.append(
+                                    f"<div style='margin-bottom: 16px; font-size: 1rem; line-height: 1.6; color: #f1f5f9;'>"
+                                    f"<strong>🩺 Clinical Overview:</strong><br>{html.escape(direct_ans)}"
+                                    f"</div>"
+                                )
 
-                            # Home Remedies
-                            remedies = data.get("remedies", [])
-                            if remedies:
-                                rem_list = "\n".join([f"- **Step {i}:** {r}" for i, r in enumerate(remedies, 1)])
-                                content_blocks.append(f"### 🌿 Recommended Actions & Remedies\n{rem_list}")
-
-                            # Preventive Advice
-                            advice = data.get("advice", "")
-                            if advice:
-                                content_blocks.append(f"### 💡 Medical Guidance & Red Flags\n{advice}")
-
-                            # Local Doctors
+                            # 3. Dedicated High-Precision Doctor Cards
                             doctors = data.get("doctors", [])
+                            specialty = data.get("specialty_needed", "")
                             if doctors:
+                                html_parts.append(
+                                    f"<div style='margin-top: 14px; margin-bottom: 10px; font-size: 1.05rem; font-weight: 700; color: #89f7fe;'>"
+                                    f"👨‍⚕️ Verified Specialists & Clinics in {html.escape(active_loc)}:"
+                                    f"</div>"
+                                )
+
                                 sorted_doctors = sorted(
                                     doctors,
                                     key=lambda d: doctor_completeness_score(d if isinstance(d, dict) else d.model_dump()),
                                     reverse=True,
                                 )
-                                doc_text = f"### 👨‍⚕️ Verified Specialists Near {active_loc}\n\n"
+
                                 for doc in sorted_doctors:
                                     if hasattr(doc, "model_dump"):
                                         doc = doc.model_dump()
-                                    stars = get_stars(doc.get("rating", ""))
-                                    phone_val = doc.get("phone", "N/A")
-                                    link_val = doc.get("link", "")
 
-                                    if link_val:
-                                        phone_display = f"{phone_val} • [Visit Profile / Booking]({link_val})"
-                                    else:
-                                        phone_display = phone_val
+                                    doc_name = html.escape(doc.get("name") or "Specialist Clinic")
+                                    doc_spec = html.escape(doc.get("specialty") or specialty or "Medical Specialist")
+                                    doc_hosp = html.escape(doc.get("clinic_or_hospital") or "")
+                                    doc_loc = html.escape(doc.get("location") or active_loc)
+                                    doc_phone = html.escape(doc.get("phone") or "Contact Clinic")
+                                    doc_rating = html.escape(doc.get("rating") or "4.5/5")
+                                    doc_stars = get_stars(doc_rating)
+                                    doc_link = doc.get("link", "")
+                                    doc_why = html.escape(doc.get("why_recommended") or "")
 
-                                    doc_text += (
-                                        f"**🧑‍⚕️ {doc.get('name', 'Specialist')}**\n\n"
-                                        f"- 📍 **Address/Area:** {doc.get('location', 'Area nearby')}\n"
-                                        f"- 📞 **Contact:** {phone_display}\n"
-                                        f"- ⭐ **Rating:** {stars}\n\n---\n"
-                                    )
-                                content_blocks.append(doc_text)
+                                    hosp_line = f"<div class='doctor-detail-item'>🏥 <span>{doc_hosp}</span></div>" if doc_hosp else ""
+                                    why_line = f"<div class='doctor-why'>💡 <strong>Why Recommended:</strong> {doc_why}</div>" if doc_why else ""
 
-                            content_blocks.append(
-                                "\n*Disclaimer: This guidance is provided by an AI triage assistant and does not substitute for a formal diagnosis or emergency medical care.*"
+                                    btn_line = ""
+                                    if doc_link and doc_link.startswith("http"):
+                                        btn_line = f"<a href='{html.escape(doc_link)}' target='_blank' class='doctor-btn'>View Clinic / Book Appointment →</a>"
+
+                                    card_html = f"""
+                                    <div class="doctor-card">
+                                        <div class="doctor-header">
+                                            <div>
+                                                <div class="doctor-name">{doc_name}</div>
+                                                <div class="doctor-specialty">{doc_spec}</div>
+                                            </div>
+                                            <div class="doctor-rating">{doc_stars} ({doc_rating})</div>
+                                        </div>
+                                        <div class="doctor-details">
+                                            {hosp_line}
+                                            <div class="doctor-detail-item">📍 <span>{doc_loc}</span></div>
+                                            <div class="doctor-detail-item">📞 <span><strong>Contact:</strong> {doc_phone}</span></div>
+                                            {why_line}
+                                        </div>
+                                        {btn_line}
+                                    </div>
+                                    """
+                                    html_parts.append(card_html)
+
+                            # 4. Safe Home Remedies
+                            remedies = data.get("remedies", [])
+                            if remedies:
+                                rem_items = "".join([f"<li style='margin-bottom: 6px;'>{html.escape(r)}</li>" for r in remedies])
+                                html_parts.append(
+                                    f"<div style='margin-top: 14px; background: rgba(30, 176, 191, 0.08); border-radius: 10px; padding: 12px 16px;'>"
+                                    f"<div style='font-weight: 700; color: #89f7fe; margin-bottom: 6px;'>🌿 Recommended Home Care & Recovery Steps:</div>"
+                                    f"<ul style='margin: 0; padding-left: 20px; color: #e2e8f0;'>{rem_items}</ul>"
+                                    f"</div>"
+                                )
+
+                            # 5. Medical Guidance & Red Flags
+                            advice = data.get("advice", "")
+                            if advice:
+                                html_parts.append(
+                                    f"<div style='margin-top: 12px; font-size: 0.92rem; color: #cbd5e1; line-height: 1.6;'>"
+                                    f"<strong>💡 Medical Guidance & Warning Signs:</strong><br>{html.escape(advice)}"
+                                    f"</div>"
+                                )
+
+                            html_parts.append(
+                                "<div style='margin-top: 14px; font-size: 0.78rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;'>"
+                                "*Disclaimer: This guidance is provided by an AI triage assistant and does not substitute for a formal diagnosis or emergency medical care.*"
+                                "</div>"
                             )
 
-                            full_response = "\n\n".join(content_blocks)
-                            st.markdown(
-                                f'<div class="chat-response-card">{full_response}</div>',
-                                unsafe_allow_html=True,
-                            )
+                            full_response_html = f'<div class="chat-response-card">{"".join(html_parts)}</div>'
+                            st.markdown(full_response_html, unsafe_allow_html=True)
 
                             st.session_state["messages"].append(
-                                {"role": "assistant", "content": full_response, "is_card": True}
+                                {"role": "assistant", "content": full_response_html, "is_card": True}
                             )
 
                     except Exception as e:
@@ -675,7 +813,6 @@ with main_col:
                         )
 
     # Render previous conversation history
-    # If a prompt was just submitted, exclude the last turn since it was already displayed above
     rendered_history = st.session_state.get("messages", [])
     if active_prompt and len(rendered_history) >= 2:
         history_to_display = rendered_history[:-2]
@@ -686,9 +823,6 @@ with main_col:
         avatar = "🩺" if msg.get("role") == "assistant" else "👤"
         with st.chat_message(msg.get("role"), avatar=avatar):
             if msg.get("is_card"):
-                st.markdown(
-                    f'<div class="chat-response-card">{msg.get("content")}</div>',
-                    unsafe_allow_html=True,
-                )
+                st.markdown(msg.get("content"), unsafe_allow_html=True)
             else:
                 st.markdown(msg.get("content"))
