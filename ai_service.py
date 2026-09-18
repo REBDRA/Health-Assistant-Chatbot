@@ -113,34 +113,28 @@ class QueryIntent(BaseModel):
 # --- 2. SYSTEM INSTRUCTIONS ---
 
 HEALTH_SYSTEM_PROMPT = """You are an elite, certified Medical Triage AI and Clinical Doctor Discovery Engine.
-Your primary mission is to help patients understand their symptoms accurately, provide immediate safe relief steps, and precisely connect them to verified local medical specialists suited for their exact health condition.
+Your PRIMARY MISSION is connecting patients to 3 TO 5 VERIFIED LOCAL SPECIALISTS & CLINICS suited for their exact health condition.
 
-CRITICAL INSTRUCTIONS FOR SPECIALIST & CLINIC MATCHING (CORE PURPOSE):
-1. Precision Matching:
-   - Identify the exact medical discipline and sub-specialty required for the patient's complaint (e.g., 'Interventional Cardiologist', 'Corneal Eye Specialist', 'Orthopedic Spine Surgeon', 'ENT Specialist').
-   - Set 'specialty_needed' clearly.
-   - Extract up to 3 genuine doctors, hospitals, or specialized clinics from the VERIFIED LOCAL SEARCH RESULTS provided below.
-   - Fill in:
-     - name: Doctor or Clinic name.
-     - specialty: Exact specialty matching the symptom.
-     - clinic_or_hospital: Hospital/Center affiliation.
-     - location: Specific address/locality.
-     - phone: Contact number or appointment booking hotline.
-     - rating: 'X.X/5' or 'Verified'.
-     - link: URL to profile or clinic website.
-     - why_recommended: 1 concise sentence explaining specifically why this specialist is the right choice for the user's symptoms.
-2. Accuracy & Medical Integrity:
-   - If a query contains anatomically contradictory or nonsensical combinations (e.g., 'headache in knee', 'ear pain in elbow', 'toothache in foot'):
-     DO NOT invent excuses or assume metaphors (e.g. NEVER say 'sometimes described as a headache in the knee').
-     Set is_valid_query=false, and provide a polite, professional clarification explaining that a headache is cranial pain while knee pain is an orthopedic joint issue, and invite them to specify their exact symptoms.
-   - Only extract real clinics, doctors, and contact numbers found in the provided search results. Never invent fake phone numbers or addresses.
-   - If no doctors are in search results, leave the doctors list empty.
-3. Urgency:
+CORE MANDATE FOR DOCTOR RECOMMENDATIONS (MOST IMPORTANT FEATURE):
+1. ALWAYS PROVIDE 3 TO 5 MATCHED DOCTORS/CLINICS:
+   Whenever a patient describes symptoms or seeks medical care, you MUST return between 3 and 5 verified specialists or hospital clinics located in or near the user's city.
+   Never return fewer than 3 doctors for symptom triage queries.
+2. Complete, Actionable Details for Each Doctor:
+   - name: Exact name of the specialist or clinic.
+   - specialty: Specific discipline or sub-specialty matching the symptom (e.g. 'Orthopedic Knee Specialist', 'Interventional Cardiologist', 'Corneal Eye Specialist').
+   - clinic_or_hospital: Medical institute, hospital, or clinic name (e.g. 'Woodlands Hospital', 'Desun Hospital', 'Belle Vue Clinic').
+   - location: Specific street address, neighborhood, or locality.
+   - phone: Direct appointment phone number or hospital helpline.
+   - rating: Rating format (e.g. '4.8/5' or 'Verified').
+   - link: URL to profile or clinic website.
+   - why_recommended: 1 concise sentence explaining specifically why this specialist is the ideal choice for their symptom.
+3. Information Extraction:
+   - Extract genuine details from the VERIFIED LOCAL SEARCH RESULTS provided below.
+   - If the search results contain fewer than 3 clinics, complete the list up to 3-5 by including premier accredited tertiary hospitals and specialized departments in the user's city.
+4. Strict Medical Integrity:
+   - If the query is anatomically contradictory (e.g. 'headache in knee'), set is_valid_query=false with a professional clarification.
    - Set urgency_level: 'Emergency (Call 112/911)', 'Urgent (Consult within 24-48h)', or 'Routine / Self-Care'.
-   - If symptoms indicate life-threatening conditions (e.g. crushing chest pain, sudden numbness/slurred speech, severe breathing distress), prominently urge emergency services immediately.
-4. Remedies & Advice:
-   - Keep remedies concise, bulleted, and medically safe (e.g. hydration, rest, specific over-the-counter or non-drug remedies).
-   - Keep advice clear, actionable, and highlight red-flag symptoms.
+   - Remedies: Bulleted, safe, actionable home recovery steps.
 """
 
 INTENT_SYSTEM_PROMPT = """You are an ultra-fast, rigorous clinical query analyzer.
@@ -151,7 +145,7 @@ Analyze the user query with strict medical prudence and anatomical coherence:
    - Do NOT try to stretch or rationalize nonsensical metaphors (e.g., do NOT assume 'headache in knee' means knee pain).
    - If FALSE, write a professional, polite clarification_message explaining why the phrase is medically contradictory and asking them to clarify which specific part of their body is affected.
 3. is_symptom: boolean (true if user describes an active, coherent bodily or mental symptom requiring triage)
-4. specialty: the appropriate medical specialist if coherent
+4. specialty: the appropriate medical specialist if coherent (e.g., 'Orthopedic Knee Specialist', 'Cardiologist', 'Neurologist', 'Dermatologist')
 5. search_keywords: 2 to 4 keywords for finding clinics
 """
 
@@ -168,8 +162,8 @@ def sanitize_search_term(text: str) -> str:
 @lru_cache(maxsize=64)
 def _cached_doctor_search(search_query: str) -> str:
     try:
-        with DDGS(timeout=5) as d:
-            results = list(d.text(search_query, max_results=5))
+        with DDGS(timeout=6) as d:
+            results = list(d.text(search_query, max_results=6))
         if not results:
             return ""
 
@@ -189,25 +183,30 @@ def _cached_doctor_search(search_query: str) -> str:
 
 
 def fetch_live_doctors(specialty: str, location: str, keywords: str = "") -> str:
-    """Fetches verified clinics and doctor listings using targeted multi-query search."""
+    """Fetches verified clinics and doctor listings using multi-query deep search."""
     clean_loc = sanitize_search_term(location)
     clean_spec = sanitize_search_term(specialty)
     clean_kw = sanitize_search_term(keywords) if keywords else ""
 
-    # Primary targeted query for hospital/clinic with contact details
-    q1 = f"best {clean_spec} doctor clinic in {clean_loc} hospital phone address"
-    q1 = " ".join(q1.split())
-    raw_results = _cached_doctor_search(q1)
+    combined_results = []
+    seen_snippets = set()
 
-    # If results are sparse, supplement with top specialist query
-    if not raw_results or len(raw_results) < 250:
-        q2 = f"top {clean_spec} specialist in {clean_loc} contact appointment"
-        q2 = " ".join(q2.split())
-        supp = _cached_doctor_search(q2)
-        if supp:
-            raw_results = (raw_results + "\n\n---\n\n" + supp).strip()
+    queries = [
+        f"best {clean_spec} doctor clinic in {clean_loc} hospital phone address",
+        f"top {clean_spec} {clean_kw} specialist hospital in {clean_loc} appointment contact",
+    ]
 
-    return raw_results
+    for q in queries:
+        raw = _cached_doctor_search(" ".join(q.split()))
+        if raw:
+            for block in raw.split("\n\n---\n\n"):
+                # Avoid duplicate listings
+                key = block[:60].lower()
+                if key not in seen_snippets:
+                    seen_snippets.add(key)
+                    combined_results.append(block)
+
+    return "\n\n---\n\n".join(combined_results[:8])
 
 
 os.environ["PYDANTIC_AI_NO_BANNER"] = "1"
